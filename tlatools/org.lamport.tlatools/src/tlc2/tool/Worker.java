@@ -434,6 +434,31 @@ public final class Worker extends IdThread implements IWorker, INextStateFunctor
         int k = 0;
 		try
         {
+			// If the option is set, record this invariant, violation, 
+			// continue checking all other invariants, and don't halt the
+			// worker.
+
+			if(TLCGlobals.checkAllInvariants){
+				for (k = 0; k < this.tool.getInvariants().length; k++){
+					// The invariant is violated.
+					if (!tool.isValid(this.tool.getInvariants()[k], succState)){
+						synchronized (this.tlc)
+						{
+							// If this invariant has not already been violated
+							// previously, record it and print out the record
+							// of the violation.
+							String invName = this.tool.getInvNames()[k];
+							if(!this.tlc.violatedInvs.contains(invName)){
+								this.tlc.violatedInvs.add(invName);
+								MP.printError(EC.TLC_INVARIANT_VIOLATED_BEHAVIOR, invName);
+							}
+						}
+					}
+				}
+				// Don't terminate the worker.
+				return false;
+			}
+
 			for (k = 0; k < this.tool.getInvariants().length; k++)
             {
                 if (!tool.isValid(this.tool.getInvariants()[k], succState))

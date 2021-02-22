@@ -10,6 +10,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.List;
 import java.util.Set;
+import java.util.HashSet;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.stream.Collectors;
@@ -68,6 +69,9 @@ public class ModelChecker extends AbstractChecker
 	 * Flag set via JMX if liveness checking should be triggered.
 	 */
 	private boolean forceLiveCheck = false;
+
+	// The set of invariants, identified by name, that have been violated so far in this run.
+	public Set violatedInvs = new HashSet<String>();
 
     /* Constructors  */
     public ModelChecker(ITool tool, String metadir, final IStateWriter stateWriter, boolean deadlock, String fromChkpt,
@@ -486,6 +490,32 @@ public class ModelChecker extends AbstractChecker
         int k = 0;
 		try
         {
+			// If the option is set, record this invariant, violation, 
+			// continue checking all other invariants, and don't halt the
+			// worker.
+			if(TLCGlobals.checkAllInvariants){
+				for (k = 0; k < tool.getInvariants().length; k++){
+					// The invariant is violated
+					if (!tool.isValid(tool.getInvariants()[k], succState)){
+						synchronized (this)
+						{
+							// If this invariant has not already been violated
+							// previously, record it and print out the record
+							// of the violation.
+							String invName = tool.getInvNames()[k];
+							if(!this.violatedInvs.contains(invName)){
+								this.violatedInvs.add(tool.getInvNames()[k]);
+								MP.printError(EC.TLC_INVARIANT_VIOLATED_BEHAVIOR,
+									tool.getInvNames()[k]);
+								MP.printMessage(0, "WILLIAM HERE");
+							}
+						}
+					}
+				}
+				// Don't terminate the worker.
+				return false;
+			}
+
 			for (k = 0; k < tool.getInvariants().length; k++)
             {
                 if (!tool.isValid(tool.getInvariants()[k], succState))
@@ -1145,10 +1175,21 @@ public class ModelChecker extends AbstractChecker
 				if (!seen || forceChecks) {
 					for (int j = 0; j < tool.getInvariants().length; j++) {
 						if (!tool.isValid(tool.getInvariants()[j], curState)) {
-							// We get here because of invariant violation:
-							MP.printError(EC.TLC_INVARIANT_VIOLATED_INITIAL,
-									new String[] { tool.getInvNames()[j].toString(), curState.toString() });
-							if (!TLCGlobals.continuation) {
+
+							if(TLCGlobals.checkAllInvariants){
+								String invName = tool.getInvNames()[j];
+								if(!violatedInvs.contains(invName)){
+									violatedInvs.add(invName);
+									MP.printError(EC.TLC_INVARIANT_VIOLATED_INITIAL,
+										new String[] { invName.toString(), curState.toString() });
+								}
+							}
+
+							if (!TLCGlobals.continuation && !TLCGlobals.checkAllInvariants) {
+								// We get here because of invariant violation:
+								MP.printError(EC.TLC_INVARIANT_VIOLATED_INITIAL,
+								new String[] { tool.getInvNames()[j].toString(), curState.toString() });
+
 								this.errState = curState;
 								returnValue = EC.TLC_INVARIANT_VIOLATED_INITIAL;
 								throw new InvariantViolatedException();

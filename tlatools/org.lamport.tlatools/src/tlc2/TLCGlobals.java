@@ -110,6 +110,9 @@ public class TLCGlobals
     // Continue running even when invariant is violated
     public static boolean continuation = false;
 
+	// Check all invariants no matter what, and don't stop when one is violated.
+	public static boolean checkAllInvariants = false;
+
     // Prints only the state difference in state traces
     public static boolean printDiffsOnly = false;
 

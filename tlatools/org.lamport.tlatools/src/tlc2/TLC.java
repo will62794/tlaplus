@@ -444,6 +444,10 @@ public class TLC {
             {
                 index++;
                 TLCGlobals.continuation = true;
+            } else if (args[index].equals("-checkAllInvariants"))
+            {
+                index++;
+                TLCGlobals.checkAllInvariants = true;
             } else if (args[index].equals("-view"))
             {
                 index++;
