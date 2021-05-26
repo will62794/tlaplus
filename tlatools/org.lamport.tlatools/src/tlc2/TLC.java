@@ -39,6 +39,7 @@ import tlc2.tool.impl.Tool.Mode;
 import tlc2.tool.management.ModelCheckerMXWrapper;
 import tlc2.tool.management.TLCStandardMBean;
 import tlc2.util.DotStateWriter;
+import tlc2.util.JsonStateWriter;
 import tlc2.util.FP64;
 import tlc2.util.IStateWriter;
 import tlc2.util.NoopStateWriter;
@@ -381,6 +382,7 @@ public class TLC {
     {
 		String dumpFile = null;
 		boolean asDot = false;
+		boolean asJson = false;
 	    boolean colorize = false;
 	    boolean actionLabels = false;
 		boolean snapshot = false;
@@ -531,6 +533,16 @@ public class TLC {
                 	actionLabels = dotArgs.contains("actionlabels");
                 	snapshot = dotArgs.contains("snapshot");
 					dumpFile = getDumpFile(args[index++], ".dot");
+                }
+                else if (((index + 1) < args.length) && args[index].startsWith("json"))
+                {
+                	final String dotArgs = args[index].toLowerCase();
+                	index++; // consume "dot...".
+                	asJson = true;
+                	colorize = dotArgs.contains("colorize");
+                	actionLabels = dotArgs.contains("actionlabels");
+                	snapshot = dotArgs.contains("snapshot");
+					dumpFile = getDumpFile(args[index++], ".json");
                 }
                 else if (index < args.length)
                 {
@@ -958,7 +970,11 @@ public class TLC {
 			try {
 				if (asDot) {
 					this.stateWriter = new DotStateWriter(dumpFile, colorize, actionLabels, snapshot);
-				} else {
+				} 
+                else if(asJson){
+                    this.stateWriter = new JsonStateWriter(dumpFile, colorize, actionLabels, snapshot);
+                }
+                else {
 					this.stateWriter = new StateWriter(dumpFile);
 				}
 			} catch (IOException e) {
