@@ -43,6 +43,7 @@ import util.FileUtil;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonArray;
+import com.google.gson.JsonPrimitive;
 import com.google.gson.GsonBuilder;
 import com.google.gson.Gson;
 
@@ -91,6 +92,9 @@ public class JsonStateWriter extends StateWriter {
 
 	// JSON array containing all states.
 	private JsonArray statesArray = new JsonArray();
+
+	// JSON array containing all states.
+	private JsonArray edgesArray = new JsonArray();
 	
 	public JsonStateWriter(final String fname, final String strict) throws IOException {
 		this(fname, strict, false, false, false);
@@ -155,15 +159,8 @@ public class JsonStateWriter extends StateWriter {
 		// this.writer.append("\",style = filled]");
 		// this.writer.append("\n");
 		
-
-		try{
-			JsonElement stateJson = TLCJson.stateToJson(state);
-			statesArray.add(stateJson);
-			// System.out.println(stateJson.toString());
-		}
-		catch(IOException e){
-			System.out.println(e.toString());
-		}
+		JsonElement stateJson = state2json(state);
+		statesArray.add(stateJson);
 
 		maintainRanks(state);
 		
@@ -219,6 +216,13 @@ public class JsonStateWriter extends StateWriter {
 		// this.writer.append(Long.toString(state.fingerPrint()));
 		// this.writer.append(" -> ");
 		// this.writer.append(successorsFP);
+
+		JsonArray edgeJson = new JsonArray();
+		edgeJson.add(new JsonPrimitive(state.fingerPrint()));
+		edgeJson.add(new JsonPrimitive(successor.fingerPrint()));
+		edgesArray.add(edgeJson);
+
+
 		if (visualization == Visualization.STUTTERING) {
 			// this.writer.append(" [style=\"dashed\"];\n");
 		} else {
@@ -242,14 +246,20 @@ public class JsonStateWriter extends StateWriter {
 				// this.writer.append("\"]");
 				// this.writer.append(";\n");
 
-				try{
-					JsonElement stateJson = TLCJson.stateToJson(successor);
-					statesArray.add(stateJson);
-					// System.out.println(stateJson.toString());
-				}
-				catch(IOException e){
-					System.out.println(e.toString());
-				}
+				
+				statesArray.add(state2json(successor));
+
+				// try{
+				// 	JsonObject stateObj = new JsonElement;
+				// 	JsonElement stateJson = TLCJson.stateToJson(successor);
+				// 	stateObj.add("fp", state.fingerPrint())
+				// 	stateObj.add("val", stateJson)
+				// 	statesArray.add((JsonElement)stateObj);
+				// 	// System.out.println(stateJson.toString());
+				// }
+				// catch(IOException e){
+				// 	System.out.println(e.toString());
+				// }
 			}
 		}
 		
@@ -357,6 +367,25 @@ public class JsonStateWriter extends StateWriter {
 //		return sb.toString();
 //	}
 
+	protected static JsonElement state2json(final TLCState state) {
+
+		try{
+			JsonObject stateObj = new JsonObject();
+			JsonElement stateJson = TLCJson.stateToJson(state);
+
+			// Construct the state with its fingerprint and its value.
+			stateObj.add("fp", new JsonPrimitive(state.fingerPrint()));
+			stateObj.add("val", stateJson);
+			return stateObj;
+			// System.out.println(stateJson.toString());
+		}
+		catch(IOException e){
+			System.out.println(e.toString());
+			return new JsonObject();
+		}
+	}
+
+
 	protected static String states2dot(final TLCState state) {
 		// Replace "\" with "\\" and """ with "\"".	
 		return state.toString().replace("\\", "\\\\").replace("\"", "\\\"").trim()
@@ -368,6 +397,7 @@ public class JsonStateWriter extends StateWriter {
 	 */
 	public void close() {
 		statesObject.add("states", statesArray);
+		statesObject.add("edges", edgesArray);
 		// System.out.println(statesObject.toString());
 
 		// Save the JSON string to file.
