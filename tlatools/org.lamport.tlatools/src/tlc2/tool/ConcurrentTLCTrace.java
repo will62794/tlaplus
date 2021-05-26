@@ -204,9 +204,12 @@ public class ConcurrentTLCTrace extends TLCTrace {
 	 * @throws WorkerException
 	 */
 	public void printTrace(final TLCState s1, final TLCState s2) throws IOException, WorkerException {
+		// System.out.println("### Printing trace on violation");
 		if (s1.isInitial()) {
+			// System.out.println("### Printing trace on violation (initial)");
 			printTrace(s1, s2, new TLCStateInfo[0]);
 		} else {
+			// System.out.println("### Printing trace on violation (non-initial)");
 			printTrace(s1, s2, getTrace(s1));
 		}
 	}

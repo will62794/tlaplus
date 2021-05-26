@@ -351,6 +351,7 @@ public class TLCTrace {
 			// use the two states s1 and s2 directly.
 			MP.printError(EC.TLC_BEHAVIOR_UP_TO_THIS_POINT);
 			if (s2 == null) {
+				// System.out.println("### printTrace s1");
 			    StatePrinter.printInvariantViolationStateTraceState(new TLCStateInfo(s1));
 			} else {
 				// Print initial state
@@ -371,6 +372,9 @@ public class TLCTrace {
 		TLCState lastState = null;
 		int idx = 0;
 		while (idx < prefix.length - 1) {
+			// Print out JSON form of state.
+			System.out.println(TLCJson.stateToJson(prefix[idx].state).toString());
+
 			StatePrinter.printInvariantViolationStateTraceState(this.tool.evalAlias(prefix[idx], prefix[idx + 1].state), lastState, idx + 1);
 			lastState = prefix[idx].state;
 			idx++;
@@ -391,7 +395,8 @@ public class TLCTrace {
 		} else {
 			TLCStateInfo s0 = prefix[prefix.length - 1];
 			StatePrinter.printInvariantViolationStateTraceState(this.tool.evalAlias(s0, s1), lastState, ++idx);
-			
+			// System.out.println(TLCJson.stateToJson(s0.state).toString());
+
 			sinfo = this.tool.getState(s1.fingerPrint(), s0.state);
 			if (sinfo == null) {
 				MP.printError(EC.TLC_FAILED_TO_RECOVER_INIT);
@@ -405,6 +410,8 @@ public class TLCTrace {
 		}
 		sinfo = this.tool.evalAlias(sinfo, s2 == null ? sinfo.state : s2);
 		StatePrinter.printInvariantViolationStateTraceState(sinfo, lastState, ++idx);
+		// System.out.println(TLCJson.stateToJson(lastState).toString());
+
 		lastState = sinfo.state;
 
 		// Print s2:

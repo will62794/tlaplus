@@ -97,6 +97,7 @@ Spec == /\ Init /\ [][Next]_vars
 \* The mutual exclusion property i.e. the processes cannot be 
 \* inside the critical sectuion at the same time.
 Mutex == \A p,q \in ProcSet : (p # q) => ~(pc[p] = "cs" /\ pc[q] = "cs")
+MutexWrong == \A p,q \in ProcSet : (p # q) => ~(pc[p] = "cs" /\ pc[q] = "a4")
 
 NextUnchanged == UNCHANGED vars
 
