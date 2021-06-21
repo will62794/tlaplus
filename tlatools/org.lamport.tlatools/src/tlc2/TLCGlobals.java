@@ -50,6 +50,8 @@ public class TLCGlobals
 	public static double livenessRatio = 0.2d;
 	
 	public static String lnCheck = "default";
+
+	public static boolean saveJSONTrace = false;
 	
 	public static boolean doLiveness() {
 		return !(lnCheck.equals("final") || lnCheck.equals("seqfinal"));

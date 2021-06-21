@@ -349,8 +349,14 @@ public class TLC {
             System.exit(1);
         }
 
+        // System.out.println("### Being explicit about tool success");
         // Be explicit about tool success.
-        System.exit(EC.ExitStatus.errorConstantToExitStatus(errorCode));
+        int retcode = EC.ExitStatus.errorConstantToExitStatus(errorCode);
+        // System.out.println("### Converted code");
+        System.exit(retcode);
+        // System.out.println("### Halting");
+        // Runtime.getRuntime().halt(0);
+        return;
     }
     
 	// false if the environment (JVM, OS, ...) makes model checking impossible.
@@ -729,7 +735,13 @@ public class TLC {
                     printErrorMsg("Error: need to specify the full qualified file.");
                     return false;
                 }
-            } else if (args[index].equals("-workers"))
+            } 
+            else if (args[index].equals("-jsonTrace"))
+            {
+                index++;
+                TLCGlobals.saveJSONTrace = true;
+            }            
+            else if (args[index].equals("-workers"))
             {
                 index++;
                 if (index < args.length)
@@ -1121,6 +1133,12 @@ public class TLC {
 			// In tool mode print runtime in milliseconds, in non-tool mode print human
 			// readable runtime (days, hours, minutes, ...).
 			final long runtime = System.currentTimeMillis() - startTime;
+            // System.out.println("### TLC DONE.");
+            // System.out.printf("### runtime: %d ms. \n", runtime);
+
+            final long endtime = System.currentTimeMillis();
+      
+
 			MP.printMessage(EC.TLC_FINISHED,
 					// If TLC runs without -tool output it might still be useful to
 					// report overall runtime in a machine-readable format (milliseconds)
@@ -1136,6 +1154,8 @@ public class TLC {
 
 			MP.unsubscribeRecorder(this.recorder);
 			MP.flush();
+
+            // System.out.printf("### extra time: %d ms. \n", System.currentTimeMillis() - endtime);
         }
     }
     

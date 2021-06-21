@@ -9,10 +9,13 @@ package tlc2.tool;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
+import java.io.FileWriter;
+import java.io.BufferedWriter;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
+import tlc2.TLCGlobals;
 import tlc2.output.EC;
 import tlc2.output.MP;
 import tlc2.output.StatePrinter;
@@ -26,6 +29,13 @@ import tlc2.value.impl.Value;
 import util.Assert;
 import util.FileUtil;
 
+import com.google.gson.JsonObject;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonPrimitive;
+import com.google.gson.GsonBuilder;
+import com.google.gson.Gson;
+
 public class TLCTrace {
 
 	static final String EXT = ".st";
@@ -34,11 +44,22 @@ public class TLCTrace {
 	private long lastPtr;
 	protected TraceApp tool;
 
+	// For writing JSON trace.
+	protected static String jsonFilename;
+	private BufferedWriter jsonFileWriter = null;
+	private JsonObject statesObject = new JsonObject();
+	private boolean saveJSONTrace = false;
+
 	public TLCTrace(String metadir, String specFile, TraceApp tool) throws IOException {
 		filename = metadir + FileUtil.separator + specFile + EXT;
 		this.raf = new BufferedRandomAccessFile(filename, "rw");
 		this.lastPtr = 1L;
 		this.tool = tool;
+
+		if(TLCGlobals.saveJSONTrace){
+			jsonFilename = metadir + FileUtil.separator + "trace.json";
+			this.jsonFileWriter = new BufferedWriter(new FileWriter(jsonFilename));	
+		}
 	}
 
 	/**
@@ -345,6 +366,11 @@ public class TLCTrace {
 	
 	protected synchronized final void printTrace(final TLCState s1, final TLCState s2, final TLCStateInfo[] prefix)
 			throws IOException, WorkerException {
+		// System.out.println("### PRINTING TRACE");
+		JsonArray statesArray = new JsonArray();
+
+		// this.jsonTraceFile.write("this will be a json file");
+
 		if (s1.isInitial()) {
 			// Do not recreate the potentially expensive error trace - e.g. when the set of
 			// initial states is huge such as during inductive invariant checking. Instead
@@ -373,13 +399,16 @@ public class TLCTrace {
 		int idx = 0;
 		while (idx < prefix.length - 1) {
 			// Print out JSON form of state.
-			System.out.println(TLCJson.stateToJson(prefix[idx].state).toString());
+			// System.out.println(TLCJson.stateToJson(prefix[idx].state).toString());
+			// Add JSON state to trace array.
+			statesArray.add(TLCJson.stateToJson(prefix[idx].state));
 
 			StatePrinter.printInvariantViolationStateTraceState(this.tool.evalAlias(prefix[idx], prefix[idx + 1].state), lastState, idx + 1);
 			lastState = prefix[idx].state;
 			idx++;
 		}
 
+		// System.out.printf(a"prefix length: %d\n", prefix.length);
 		// Print s1:
 		TLCStateInfo sinfo;
 		// If the prefix is of length zero, s1 is an initial state. If the
@@ -387,6 +416,7 @@ public class TLCTrace {
 		// to s1.
 		if (prefix.length == 0) {
 			sinfo = this.tool.getState(s1.fingerPrint());
+			// System.out.println(TLCJson.stateToJson(sinfo.state).toString());
 			if (sinfo == null) {
 				MP.printError(EC.TLC_FAILED_TO_RECOVER_INIT);
 				MP.printError(EC.TLC_BUG, "3");
@@ -394,13 +424,16 @@ public class TLCTrace {
 			}
 		} else {
 			TLCStateInfo s0 = prefix[prefix.length - 1];
-			StatePrinter.printInvariantViolationStateTraceState(this.tool.evalAlias(s0, s1), lastState, ++idx);
 			// System.out.println(TLCJson.stateToJson(s0.state).toString());
+			statesArray.add(TLCJson.stateToJson(s0.state));
+
+			StatePrinter.printInvariantViolationStateTraceState(this.tool.evalAlias(s0, s1), lastState, ++idx);
 
 			sinfo = this.tool.getState(s1.fingerPrint(), s0.state);
 			if (sinfo == null) {
 				MP.printError(EC.TLC_FAILED_TO_RECOVER_INIT);
 				MP.printError(EC.TLC_BUG, "4");
+				System.out.println(TLCJson.stateToJson(s1).toString());
 				StatePrinter.printStandaloneErrorState(s1);
 				System.exit(1);
 			}
@@ -409,8 +442,11 @@ public class TLCTrace {
 			lastState = null;
 		}
 		sinfo = this.tool.evalAlias(sinfo, s2 == null ? sinfo.state : s2);
+
+		statesArray.add(TLCJson.stateToJson(s1));
+		// System.out.println(TLCJson.stateToJson(s1).toString());
+
 		StatePrinter.printInvariantViolationStateTraceState(sinfo, lastState, ++idx);
-		// System.out.println(TLCJson.stateToJson(lastState).toString());
 
 		lastState = sinfo.state;
 
@@ -425,7 +461,25 @@ public class TLCTrace {
 				System.exit(1);
 			}
 			sinfo = this.tool.evalAlias(sinfo, s2);
+
+			statesArray.add(TLCJson.stateToJson(sinfo.state));
+			// System.out.println(TLCJson.stateToJson(sinfo.state).toString());
+
 			StatePrinter.printInvariantViolationStateTraceState(sinfo, null, ++idx);
+		}
+
+		// System.out.println("### DONE PRINTING TRACE");
+		
+		// Write JSON trace file if specified.
+		if(TLCGlobals.saveJSONTrace){
+			statesObject.add("states", statesArray);
+
+			// Save the JSON string to file.
+			Gson gson = new GsonBuilder().setPrettyPrinting().create();
+			String prettyJson = gson.toJson(statesObject);
+
+			jsonFileWriter.write(prettyJson);
+			jsonFileWriter.close();
 		}
 	}
 
