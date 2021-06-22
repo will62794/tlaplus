@@ -57,7 +57,8 @@ public class TLCTrace {
 		this.tool = tool;
 
 		if(TLCGlobals.saveJSONTrace){
-			jsonFilename = metadir + FileUtil.separator + "trace.json";
+			// jsonFilename = metadir + FileUtil.separator + "trace.json";
+			jsonFilename = "trace.json";
 			this.jsonFileWriter = new BufferedWriter(new FileWriter(jsonFilename));	
 		}
 	}
