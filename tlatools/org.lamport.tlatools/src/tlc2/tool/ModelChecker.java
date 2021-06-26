@@ -495,6 +495,14 @@ public class ModelChecker extends AbstractChecker
 			// worker.
 			if(TLCGlobals.checkAllInvariants){
 				for (k = 0; k < tool.getInvariants().length; k++){
+					// If the invariant has already been violated, there is no need
+					// to check it again, since we already know it is not a true invariant.
+					String invName = tool.getInvNames()[k];
+					if(this.violatedInvs.contains(invName)){
+						// Move on to the next invariant.
+						continue;
+					}
+
 					// The invariant is violated
 					if (!tool.isValid(tool.getInvariants()[k], succState)){
 						synchronized (this)
@@ -502,7 +510,6 @@ public class ModelChecker extends AbstractChecker
 							// If this invariant has not already been violated
 							// previously, record it and print out the record
 							// of the violation.
-							String invName = tool.getInvNames()[k];
 							if(!this.violatedInvs.contains(invName)){
 								this.violatedInvs.add(tool.getInvNames()[k]);
 								MP.printError(EC.TLC_INVARIANT_VIOLATED_BEHAVIOR,
