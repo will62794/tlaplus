@@ -125,11 +125,7 @@ public class TLC {
     private String configFile;
     // List of config files if being used.
     private String[] configFileMulti;
-    private String[] metaDirMulti;
 	private String metadir;
-
-    private String metadirArg;
-
     /**
 	 * If instantiated with a non-Noop* instance, the trace will be written to the
 	 * user provided file (-dump parameter).
@@ -402,6 +398,7 @@ public class TLC {
 		
 		boolean generateTESpec = true;
 		Path teSpecOutDir = null;
+		
         // SZ Feb 20, 2009: extracted this method to separate the 
         // parameter handling from the actual processing
         int index = 0;
@@ -741,7 +738,6 @@ public class TLC {
                 index++;
                 if (index < args.length)
                 {
-                    metadirArg = args[index];
                     TLCGlobals.metaDir = args[index++] + FileUtil.separator;
                 } else
                 {
@@ -1000,16 +996,7 @@ public class TLC {
 		// absolute, the parent gets used as TLC's meta directory (where it stores
 		// states...). Otherwise, no meta dir is set causing states etc. to be stored in
 		// the current directory.
-        metadir = FileUtil.makeMetaDir(new Date(startTime), specDir, fromChkpt);
-        metaDirMulti = new String[configFileMulti.length];
-        if(configFileMulti != null){
-            for(int i = 0;i<configFileMulti.length;i++){
-                TLCGlobals.metaDir = metadirArg + "_" + Integer.toString(i) + "_";
-                // System.out.println(TLCGlobals.metaDir);
-                metaDirMulti[i] = FileUtil.makeMetaDir(new Date(startTime), specDir, fromChkpt);
-            }
-        }
-
+    	metadir = FileUtil.makeMetaDir(new Date(startTime), specDir, fromChkpt);
     	
 		if (dumpFile != null) {
 			if (dumpFile.startsWith("${metadir}")) {
@@ -1126,16 +1113,10 @@ public class TLC {
                         MP.printMessage(EC.GENERAL, "RUNCONFIG," + configFileMulti[i]);
                         tool = new FastTool(mainFile, configFileMulti[i], resolver);
                         deadlock = deadlock && tool.getModelConfig().getCheckDeadlock();
-                        // String metadirI = metadirArg + "_" + Integer.toString(i) + "_" + metadir;
-                        // TLCGlobals.metaDir = metadirI;
-                        // String metadir = FileUtil.makeMetaDir(new Date(startTime), specDir, fromChkpt);
-                        String metadirI = metaDirMulti[i];
-                            
-                        ModelChecker chkr = new ModelChecker(tool, metadirI, stateWriter, deadlock, fromChkpt,
-                        FPSetFactory.getFPSetInitialized(fpSetConfiguration, metadirI, new File(mainFile).getName()),
+                        ModelChecker chkr = new ModelChecker(tool, metadir, stateWriter, deadlock, fromChkpt,
+                        FPSetFactory.getFPSetInitialized(fpSetConfiguration, metadir, new File(mainFile).getName()),
                         startTime);
                         int res = chkr.modelCheck();
-                        // Thread.sleep(1500);
                     }
                     return 0;
                 }
