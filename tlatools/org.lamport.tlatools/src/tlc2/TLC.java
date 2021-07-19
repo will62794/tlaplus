@@ -123,6 +123,8 @@ public class TLC {
 	 */
     private String mainFile;
     private String configFile;
+    // List of config files if being used.
+    private String[] configFileMulti;
 	private String metadir;
     /**
 	 * If instantiated with a non-Noop* instance, the trace will be written to the
@@ -202,6 +204,7 @@ public class TLC {
         
         mainFile = null;
         configFile = null;
+        configFileMulti = null;
         fromChkpt = null;
         resolver = null;
 
@@ -527,7 +530,31 @@ public class TLC {
                     printErrorMsg("Error: expect a file name for -config option.");
                     return false;
                 }
-            } else if (args[index].equals("-dump"))
+            } else if (args[index].equals("-multiconfig"))
+            {
+                index++;
+                if (index < args.length)
+                {
+                    String configFilesStr = args[index];
+                    configFileMulti = configFilesStr.split(",");
+                    for(int i=0;i<configFileMulti.length;i++){
+
+                        if (configFileMulti[i].endsWith(TLAConstants.Files.CONFIG_EXTENSION)) {
+                            configFileMulti[i] = configFileMulti[i].substring(0,
+                                    (configFileMulti[i].length() - TLAConstants.Files.CONFIG_EXTENSION.length()));
+                        }
+                        // System.out.println(configFileMulti[i]);
+
+                    }
+                    index++;
+                } else
+                {
+                    printErrorMsg("Error: expect a file name for -config option.");
+                    return false;
+                }
+            } 
+            
+            else if (args[index].equals("-dump"))
             {
                 index++; // consume "-dump".
                 if (((index + 1) < args.length) && args[index].startsWith("dot"))
@@ -1081,6 +1108,20 @@ public class TLC {
 				// Print startup banner before SANY writes its output.
 				printStartupBanner(isBFS() ? EC.TLC_MODE_MC : EC.TLC_MODE_MC_DFS, getModelCheckingRuntime(fpIndex, fpSetConfiguration));
 				
+                if(configFileMulti != null){
+                    for(int i=0;i<configFileMulti.length;i++){
+                        MP.printMessage(EC.GENERAL, "RUNCONFIG," + configFileMulti[i]);
+                        tool = new FastTool(mainFile, configFileMulti[i], resolver);
+                        deadlock = deadlock && tool.getModelConfig().getCheckDeadlock();
+                        ModelChecker chkr = new ModelChecker(tool, metadir, stateWriter, deadlock, fromChkpt,
+                        FPSetFactory.getFPSetInitialized(fpSetConfiguration, metadir, new File(mainFile).getName()),
+                        startTime);
+                        int res = chkr.modelCheck();
+                    }
+                    return 0;
+                }
+
+
             	// model checking
                 tool = new FastTool(mainFile, configFile, resolver);
                 deadlock = deadlock && tool.getModelConfig().getCheckDeadlock();
