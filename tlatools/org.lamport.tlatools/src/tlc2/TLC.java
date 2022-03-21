@@ -389,6 +389,7 @@ public class TLC {
 		String dumpFile = null;
 		boolean asDot = false;
 		boolean asJson = false;
+		boolean asJsonITF = false;
 	    boolean colorize = false;
 	    boolean actionLabels = false;
 		boolean snapshot = false;
@@ -542,9 +543,14 @@ public class TLC {
                 }
                 else if (((index + 1) < args.length) && args[index].startsWith("json"))
                 {
+                    if(args[index].endsWith("itf")){
+                        asJsonITF = true;
+                    }else{
+                        asJson = true;
+                    }
                 	final String dotArgs = args[index].toLowerCase();
-                	index++; // consume "dot...".
-                	asJson = true;
+                	index++; // consume "json...".
+                	// asJson = true;
                 	colorize = dotArgs.contains("colorize");
                 	actionLabels = dotArgs.contains("actionlabels");
                 	snapshot = dotArgs.contains("snapshot");
@@ -984,7 +990,10 @@ public class TLC {
 					this.stateWriter = new DotStateWriter(dumpFile, colorize, actionLabels, snapshot);
 				} 
                 else if(asJson){
-                    this.stateWriter = new JsonStateWriter(dumpFile, colorize, actionLabels, snapshot);
+                    this.stateWriter = new JsonStateWriter(dumpFile, colorize, actionLabels, snapshot, asJsonITF);
+                }
+                else if(asJsonITF){
+                    this.stateWriter = new JsonStateWriter(dumpFile, colorize, actionLabels, snapshot, asJsonITF);
                 }
                 else {
 					this.stateWriter = new StateWriter(dumpFile);

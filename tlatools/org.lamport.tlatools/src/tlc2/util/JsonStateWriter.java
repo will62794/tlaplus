@@ -38,6 +38,7 @@ import java.util.Set;
 import tlc2.tool.Action;
 import tlc2.tool.TLCState;
 import tlc2.tool.TLCJson;
+import tlc2.tool.TLCJsonITF;
 import util.FileUtil;
 
 import com.google.gson.JsonObject;
@@ -95,9 +96,11 @@ public class JsonStateWriter extends StateWriter {
 
 	// JSON array containing all states.
 	private JsonArray edgesArray = new JsonArray();
+
+    private boolean useITF = false;
 	
 	public JsonStateWriter(final String fname, final String strict) throws IOException {
-		this(fname, strict, false, false, false);
+		this(fname, strict, false, false, false, false);
 	}
 	
 	/**
@@ -111,16 +114,17 @@ public class JsonStateWriter extends StateWriter {
 	 * @throws IOException
 	 */
 	public JsonStateWriter(final String fname, final boolean colorize, final boolean actionLabels,
-			final boolean snapshot) throws IOException {
-		this(fname, "strict ", colorize, actionLabels, snapshot);
+			final boolean snapshot, final boolean useITF) throws IOException {
+		this(fname, "strict ", colorize, actionLabels, snapshot, useITF);
 	}
 	
 	public JsonStateWriter(final String fname, final String strict, final boolean colorize, final boolean actionLabels,
-			final boolean snapshot) throws IOException {
+			final boolean snapshot, final boolean useITF) throws IOException {
 		super(fname);
 		this.colorize = colorize;
 		this.actionLabels = actionLabels;
 		this.snapshot = snapshot;
+        this.useITF = useITF;
 
 
 // 		this.writer.append(strict + "digraph DiskGraph {\n"); // strict removes redundant edges
@@ -367,11 +371,16 @@ public class JsonStateWriter extends StateWriter {
 //		return sb.toString();
 //	}
 
-	protected static JsonElement state2json(final TLCState state) {
+	protected JsonElement state2json(final TLCState state) {
 
 		try{
 			JsonObject stateObj = new JsonObject();
-			JsonElement stateJson = TLCJson.stateToJson(state);
+            JsonElement stateJson;
+            if(useITF){
+                stateJson = TLCJsonITF.stateToJson(state);
+            } else{
+			    stateJson = TLCJson.stateToJson(state);
+            }
 
 			// Construct the state with its fingerprint and its value.
 			stateObj.add("fp", new JsonPrimitive(state.fingerPrint()));
