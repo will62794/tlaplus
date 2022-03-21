@@ -21,12 +21,14 @@ EXTENDS TLC, Naturals, FiniteSets
         a5:  flag[self] := FALSE               }     }     }
 *)
         
+VARIABLE x
+
 VARIABLE flag, turn
 
 \* The program counter for each process.
 VARIABLE pc
 
-vars == << flag, turn, pc >>
+vars == << flag, turn, pc, x >>
 
 \* The set of processes.
 \* ProcSet == ({0,1})
@@ -38,10 +40,10 @@ ASSUME Cardinality(ProcSet) = 2
 Other(p) == CHOOSE q \in ProcSet : q # p
 
 Init == 
-    \* /\ flag = [i \in {0, 1} |-> FALSE]
     /\ flag = [i \in ProcSet |-> FALSE]
     /\ turn = CHOOSE p \in ProcSet : TRUE
     /\ pc = [self \in ProcSet |-> "a1"]
+    /\ x = [a |-> 5, b |-> 12]
 
 \*
 \* The transitions of the protocol.
@@ -50,13 +52,14 @@ Init ==
 a1(self) == /\ pc[self] = "a1"
             /\ TRUE
             /\ pc' = [pc EXCEPT ![self] = "a2"]
-            /\ UNCHANGED << flag, turn >>
+            /\ UNCHANGED << flag, turn, x >>
 
 \* A process sets its own flag to TRUE.
 a2(self) == /\ pc[self] = "a2"
             /\ flag' = [flag EXCEPT ![self] = TRUE]
             /\ pc' = [pc EXCEPT ![self] = "a3"]
             /\ turn' = turn
+            /\ UNCHANGED x
 
 
 \* A process updates 'turn'.
@@ -64,24 +67,29 @@ a3(self) == /\ pc[self] = "a3"
             /\ turn' = Other(self)
             /\ pc' = [pc EXCEPT ![self] = "a4"]
             /\ flag' = flag
+            /\ UNCHANGED x
+            
 
 \* A process enters the critical section.
 a4(self) == /\ pc[self] = "a4"
             /\ (flag[Other(self)] = FALSE) \/ (turn = self)
             /\ pc' = [pc EXCEPT ![self] = "cs"]
             /\ UNCHANGED << flag, turn >>
+            /\ UNCHANGED x
 
 \* A process exits the critical section.
 cs(self) == /\ pc[self] = "cs"
             /\ TRUE
             /\ pc' = [pc EXCEPT ![self] = "a5"]
             /\ UNCHANGED << flag, turn >>
+            /\ UNCHANGED x
 
 \* A process resets its own flag to FALSE after it left the critical section.
 a5(self) == /\ pc[self] = "a5"
             /\ flag' = [flag EXCEPT ![self] = FALSE]
             /\ pc' = [pc EXCEPT ![self] = "a1"]
             /\ turn' = turn
+            /\ UNCHANGED x
 
 Next == 
     \E self \in ProcSet : 
