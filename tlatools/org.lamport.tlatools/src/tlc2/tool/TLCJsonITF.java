@@ -191,7 +191,6 @@ public class TLCJsonITF {
   }
 
   private static JsonElement getITFNode(JsonElement value, String typename){
-    // return new JsonPrimitive(((ModelValue) value).val.toString());
     JsonObject obj = new JsonObject();
     obj.add("#type", new JsonPrimitive(typename));
     obj.add("#value", value);
@@ -206,9 +205,9 @@ public class TLCJsonITF {
    */
   private static JsonElement getNode(IValue value) throws IOException {
     if (value instanceof RecordValue) {
-      return getITFNode(getObjectNode((RecordValue) value), "#record");
+      return getITFNode(getObjectNode((RecordValue) value), "record");
     } else if (value instanceof TupleValue) {
-        return getITFNode(getArrayNode((TupleValue) value), "#tup");
+        return getITFNode(getArrayNode((TupleValue) value), "tup");
     } else if (value instanceof StringValue) {
         return getITFNode(new JsonPrimitive(((StringValue) value).val.toString()), "string");
     } else if (value instanceof ModelValue) {
@@ -289,18 +288,19 @@ public class TLCJsonITF {
    * @return the converted {@code JsonElement}
    */
   private static JsonElement getObjectNode(FcnRcdValue value) throws IOException {
+    // Serialize functions as a list of (key, value) pairs.
     if (isValidSequence(value)) {
       return getArrayNode(value);
     }
 
-    JsonObject jsonObject = new JsonObject();
+    JsonArray jsonObject = new JsonArray();
     for (int i = 0; i < value.domain.length; i++) {
       Value domainValue = value.domain[i];
-      if (domainValue instanceof StringValue) {
-        jsonObject.add(((StringValue) domainValue).val.toString(), getNode(value.values[i]));
-      } else {
-        jsonObject.add(domainValue.toString(), getNode(value.values[i]));
-      }
+
+      JsonArray pair = new JsonArray();
+      pair.add(getNode(domainValue));
+      pair.add(getNode(value.values[i]));
+      jsonObject.add(pair);
     }
     return jsonObject;
   }
