@@ -399,10 +399,11 @@ public class TLCTrace {
 		TLCState lastState = null;
 		int idx = 0;
 		while (idx < prefix.length - 1) {
-			// Print out JSON form of state.
-			// System.out.println(TLCJson.stateToJson(prefix[idx].state).toString());
 			// Add JSON state to trace array.
-			statesArray.add(TLCJson.stateToJson(prefix[idx].state));
+            JsonObject stateObj = new JsonObject();
+            stateObj.add("info", new JsonPrimitive((String) prefix[idx].info));
+            stateObj.add("state", TLCJson.stateToJson(prefix[idx].state));
+			statesArray.add(stateObj);
 
 			StatePrinter.printInvariantViolationStateTraceState(this.tool.evalAlias(prefix[idx], prefix[idx + 1].state), lastState, idx + 1);
 			lastState = prefix[idx].state;
@@ -425,8 +426,11 @@ public class TLCTrace {
 			}
 		} else {
 			TLCStateInfo s0 = prefix[prefix.length - 1];
-			// System.out.println(TLCJson.stateToJson(s0.state).toString());
-			statesArray.add(TLCJson.stateToJson(s0.state));
+
+            JsonObject stateObj = new JsonObject();
+            stateObj.add("info", new JsonPrimitive((String) prefix[prefix.length - 1].info));
+            stateObj.add("state", TLCJson.stateToJson(s0.state));
+			statesArray.add(stateObj);
 
 			StatePrinter.printInvariantViolationStateTraceState(this.tool.evalAlias(s0, s1), lastState, ++idx);
 
@@ -444,8 +448,10 @@ public class TLCTrace {
 		}
 		sinfo = this.tool.evalAlias(sinfo, s2 == null ? sinfo.state : s2);
 
-		statesArray.add(TLCJson.stateToJson(s1));
-		// System.out.println(TLCJson.stateToJson(s1).toString());
+        JsonObject stateObj = new JsonObject();
+        stateObj.add("info", new JsonPrimitive((String) sinfo.info));
+        stateObj.add("state", TLCJson.stateToJson(s1));
+        statesArray.add(stateObj);
 
 		StatePrinter.printInvariantViolationStateTraceState(sinfo, lastState, ++idx);
 
@@ -463,7 +469,12 @@ public class TLCTrace {
 			}
 			sinfo = this.tool.evalAlias(sinfo, s2);
 
-			statesArray.add(TLCJson.stateToJson(sinfo.state));
+            stateObj = new JsonObject();
+            stateObj.add("info", new JsonPrimitive((String) sinfo.info));
+            stateObj.add("state", TLCJson.stateToJson(sinfo.state));
+            statesArray.add(stateObj);
+
+
 			// System.out.println(TLCJson.stateToJson(sinfo.state).toString());
 
 			StatePrinter.printInvariantViolationStateTraceState(sinfo, null, ++idx);
