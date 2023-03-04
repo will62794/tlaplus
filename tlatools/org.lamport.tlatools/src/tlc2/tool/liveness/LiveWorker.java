@@ -5,6 +5,8 @@
 package tlc2.tool.liveness;
 
 import java.io.IOException;
+import java.io.BufferedWriter;
+import java.io.FileWriter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
@@ -21,6 +23,7 @@ import tlc2.output.StatePrinter;
 import tlc2.tool.EvalException;
 import tlc2.tool.ITool;
 import tlc2.tool.TLCStateInfo;
+import tlc2.tool.TLCJson;
 import tlc2.util.IntStack;
 import tlc2.util.LongVec;
 import tlc2.util.MemIntQueue;
@@ -28,6 +31,14 @@ import tlc2.util.MemIntStack;
 import tlc2.util.SynchronousDiskIntStack;
 import tlc2.util.statistics.BucketStatistics;
 import tlc2.util.statistics.IBucketStatistics;
+
+import com.google.gson.JsonObject;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonNull;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonPrimitive;
+import com.google.gson.GsonBuilder;
+import com.google.gson.Gson;
 
 /**
  * {@link LiveWorker} is doing the heavy lifting of liveness checking:
@@ -823,6 +834,13 @@ public class LiveWorker implements Callable<Boolean> {
 
 		MP.printError(EC.TLC_TEMPORAL_PROPERTY_VIOLATED);
 		MP.printError(EC.TLC_COUNTER_EXAMPLE);
+
+        String jsonFilename = "trace.json";
+        BufferedWriter jsonFileWriter = new BufferedWriter(new FileWriter(jsonFilename));	
+
+        JsonObject statesObject = new JsonObject();
+        JsonArray statesArray = new JsonArray();
+        JsonArray statesPostfixArray = new JsonArray();
 		
 		/*
 		 * Use a dedicated thread to concurrently search a prefix-path from some
@@ -870,8 +888,20 @@ public class LiveWorker implements Callable<Boolean> {
 
 				// Print the prefix in reverse order of previous loop:
 				for (int i = 0; i < states.size() - 1; i++) {
+
+                    // Add JSON state to trace array.
+                    TLCStateInfo s0 = states.get(i);
+                    TLCStateInfo s1 = states.get(i+1);
+                    System.out.println("s1 state info:" + s1.info);
+
+                    JsonObject stateObj = new JsonObject();
+                    stateObj.add("info", new JsonPrimitive((String) s0.info));
+                    stateObj.add("state", TLCJson.stateToJson(s0.state));
+                    statesArray.add(stateObj);
+
 					StatePrinter.printInvariantViolationStateTraceState(tool.evalAlias(states.get(i), states.get(i + 1).state));
 				}
+
 				return states;
 			}
 		});
@@ -939,6 +969,12 @@ public class LiveWorker implements Callable<Boolean> {
 		 */
 		final TLCStateInfo cycleState = states.get(states.size() - 1);
 		TLCStateInfo sinfo = cycleState;
+
+        // Add cycle state to JSON array.
+        JsonObject stateObj = new JsonObject();
+        stateObj.add("info", new JsonPrimitive((String) cycleState.info));
+        stateObj.add("state", TLCJson.stateToJson(cycleState.state));
+        statesPostfixArray.add(stateObj);
 		
 		// 4723xdf:
 		// Only print the state if it differs from its predecessor. We don't
@@ -958,6 +994,11 @@ public class LiveWorker implements Callable<Boolean> {
 				TLCStateInfo sucinfo = tool.getState(curFP, sinfo);
 				StatePrinter.printInvariantViolationStateTraceState(tool.evalAlias(sinfo, sucinfo.state));
 				sinfo = sucinfo;
+
+                stateObj = new JsonObject();
+                stateObj.add("info", new JsonPrimitive((String) sucinfo.info));
+                stateObj.add("state", TLCJson.stateToJson(sucinfo.state));
+                statesPostfixArray.add(stateObj);
 			}
 			StatePrinter.printInvariantViolationStateTraceState(tool.evalAlias(sinfo, cycleState.state));
 		}
@@ -970,6 +1011,11 @@ public class LiveWorker implements Callable<Boolean> {
 		final int stateNumber = (int) cycleState.stateNumber; // if the cast causes problems the trace won't be comprehensible anyway.
 		if (sinfo.fingerPrint() == cycleState.fingerPrint()) {
 			StatePrinter.printStutteringState(stateNumber);
+
+            // Record stuttering info.
+            stateObj = new JsonObject();
+            stateObj.add("info", new JsonPrimitive("State " + (stateNumber + 1) + ": Stuttering"));
+            statesPostfixArray.add(stateObj);
 		} else {
 			// The new sinfo.state is equivalent to cycleState after getState(..). The
 			// sinfo.info has the name of the action that closes the loop of the lasso/takes
@@ -980,7 +1026,26 @@ public class LiveWorker implements Callable<Boolean> {
 			// reduced by one because cyclePos is human-readable.
 			assert cycleState.state.equals(sinfo.state);
 			StatePrinter.printBackToState(sinfo, stateNumber);
+
+            // Record cycle info.
+            stateObj = new JsonObject();
+            stateObj.add("info", new JsonPrimitive("Back to State " + (stateNumber) + ": " + sinfo.info));
+            statesPostfixArray.add(stateObj);
 		}
+
+        // Write JSON trace file if specified.
+        if(TLCGlobals.saveJSONTrace){
+            statesArray.addAll(statesPostfixArray);
+            statesObject.add("states", statesArray);
+
+            // Save the JSON string to file.
+            Gson gson = new GsonBuilder().setPrettyPrinting().create();
+            String prettyJson = gson.toJson(statesObject);
+
+            jsonFileWriter.write(prettyJson);
+            jsonFileWriter.close();
+        }
+
 	}
 
 	// BFS search
