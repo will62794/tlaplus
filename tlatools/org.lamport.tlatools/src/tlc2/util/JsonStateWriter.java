@@ -163,7 +163,7 @@ public class JsonStateWriter extends StateWriter {
 		// this.writer.append("\",style = filled]");
 		// this.writer.append("\n");
 		
-		JsonElement stateJson = state2json(state);
+		JsonElement stateJson = state2json(state, true);
 		statesArray.add(stateJson);
 
 		maintainRanks(state);
@@ -257,7 +257,7 @@ public class JsonStateWriter extends StateWriter {
 				// this.writer.append(";\n");
 
 				
-				statesArray.add(state2json(successor));
+				statesArray.add(state2json(successor, false));
 
 				// try{
 				// 	JsonObject stateObj = new JsonElement;
@@ -377,7 +377,7 @@ public class JsonStateWriter extends StateWriter {
 //		return sb.toString();
 //	}
 
-	protected JsonElement state2json(final TLCState state) {
+	protected JsonElement state2json(final TLCState state, boolean isInitial) {
 
 		try{
 			JsonObject stateObj = new JsonObject();
@@ -391,6 +391,8 @@ public class JsonStateWriter extends StateWriter {
 			// Construct the state with its fingerprint and its value.
 			stateObj.add("fp", new JsonPrimitive(state.fingerPrint()));
 			stateObj.add("val", stateJson);
+			stateObj.add("initial", new JsonPrimitive(isInitial));
+
 			return stateObj;
 			// System.out.println(stateJson.toString());
 		}
