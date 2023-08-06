@@ -221,10 +221,16 @@ public class JsonStateWriter extends StateWriter {
 		// this.writer.append(" -> ");
 		// this.writer.append(successorsFP);
 
-		JsonArray edgeJson = new JsonArray();
-		edgeJson.add(new JsonPrimitive(state.fingerPrint()));
-		edgeJson.add(new JsonPrimitive(successor.fingerPrint()));
-		edgesArray.add(edgeJson);
+		// JsonArray edgeJson = new JsonArray();
+		JsonObject edgeJsonObj = new JsonObject();
+
+		// edgeJson.add(new JsonPrimitive(state.fingerPrint()));
+		// edgeJson.add(new JsonPrimitive(successor.fingerPrint()));
+		edgeJsonObj.add("from", new JsonPrimitive(state.fingerPrint()));
+		edgeJsonObj.add("to", new JsonPrimitive(successor.fingerPrint()));
+		edgeJsonObj.add("action", new JsonPrimitive(action.getName().toString()));
+
+		edgesArray.add(edgeJsonObj);
 
 
 		if (visualization == Visualization.STUTTERING) {
