@@ -140,6 +140,11 @@ public abstract class Tool
 
   private List<OpApplNode> inductive_conjuncts = new ArrayList<>();
 
+  private int numBranchAssigns = 0;
+  private int numPropagationErrs = 0;
+  private int numUnsatConstraints = 0;
+  private long propagationTimeMS = 0;
+
   /**
    * Creates a new tool handle
    */
@@ -366,6 +371,10 @@ public abstract class Tool
   public final StateVec getInitStates() {
 	  final StateVec initStates = new StateVec(0);
 	  getInitStates(initStates);
+    System.out.printf("numBranchAssigns: %d\n", this.numBranchAssigns);
+    System.out.printf("numPropagationErrors: %d\n", this.numPropagationErrs);
+    System.out.printf("numUnsatConstraints: %d\n", this.numUnsatConstraints);
+    System.out.printf("time in propagation: %d ms\n", this.propagationTimeMS);
 	  return initStates;
   }
 
@@ -415,7 +424,6 @@ public abstract class Tool
         case OpApplKind:
           {
             OpApplNode init1 = (OpApplNode)init;
-            System.out.println(init1.toString());
             this.getInitStatesAppl(init1, acts, c, ps, states, cm);
             return;
           }
@@ -525,7 +533,7 @@ public abstract class Tool
 
           if (val instanceof OpDefNode) {
             OpDefNode opDef = (OpDefNode)val;
-            System.out.printf("Opdef node:%s\n", opDef.getName());
+            // System.out.printf("Opdef node:%s\n", opDef.getName());
             opcode = BuiltInOPs.getOpCode(opDef.getName());
             if (opcode == 0) {
               // Context c1 = this.getOpContext(opDef, args, c, false);
@@ -776,58 +784,112 @@ public abstract class Tool
                 }
                 ValueEnumeration Enum = ((Enumerable)rval).elements();
                 Value elem;
+
+                boolean ENABLE_CONSTRAINT_PROP = true;
                 int count = 0;
+
                 while ((elem = Enum.nextElement()) != null) {
-                  System.out.printf("=== Bound new val, %s = %s, IN\n", varName, elem.toString());
+                  // System.out.printf("=== Bound new val, %s = %s, IN\n", varName, elem.toString());
+
+                  this.numBranchAssigns += 1;
                   ps.bind(varName, elem);
-                  for(String ss : ps.getVarsAsStrings()){
+
+                  // for(String ss : ps.getVarsAsStrings()){
                     // System.out.println(ss);
-                    if(ps.lookup(ss) != null){
-                      System.out.println("bound val: " + ss + " = " + ps.lookup(ss).toString());
-                    }
-                  }
+                    // if(ps.lookup(ss) != null){
+                      // System.out.println("bound val: " + ss + " = " + ps.lookup(ss).toString());
+                    // }
+                  // }
 
                   // Do unit/constraint propagation here first to avoid going
                   // down branch unnecessarily?
-                  System.out.println("BEGIN PROPAGATION");
-                  BoolValue ret;
+                  // System.out.println("BEGIN PROPAGATION");
                   boolean exists_unsat_constraint = false;
-                  for(OpApplNode conj : this.inductive_conjuncts){
-                    System.out.println("Propagating for conjunct '" + conj.getOperator().getName().toString() + "'");
-                    try{
-                      ret = (BoolValue)this.evalApplImpl(conj, c, ps, TLCState.Empty, EvalControl.Init, CostModel.DO_NOT_RECORD);
-                      System.out.println("  return val: " + ret.toString());
-                      if(!ret.val){
-                        exists_unsat_constraint = true;
-                        System.out.println("found unsat constraint");
-                        break;
+                  if(ENABLE_CONSTRAINT_PROP){
+                    BoolValue ret;
+                    for(OpApplNode conj : this.inductive_conjuncts){
+                      // System.out.println("Propagating for conjunct '" + conj.getOperator().getName().toString() + "'");
+                      try{
+
+                        boolean doPropagate = false;
+
+                        // Manually define variables that appear in each conjunct.
+                        if(conj.getOperator().getName().equals("TCConsistent")){
+                          if(ps.lookup("rmState") != null){
+                            doPropagate = true;
+                          }
+                        }
+
+                        if(conj.getOperator().getName().equals("H_Inv2000")){
+                          if(ps.lookup("rmState") != null &&
+                             ps.lookup("tmPrepared") != null &&
+                             ps.lookup("tmState") != null){
+                            doPropagate = true;
+                          }
+                        }
+
+                        if(conj.getOperator().getName().equals("H_Inv9990")){
+                          if(ps.lookup("msgsPrepared") != null &&
+                             ps.lookup("msgsAbortCommit") != null){
+                            doPropagate = true;
+                          }
+                        }
+
+                        if(conj.getOperator().getName().equals("H_Inv276")){
+                          if(ps.lookup("tmPrepared") != null &&
+                             ps.lookup("msgsAbortCommit") != null){
+                            doPropagate = true;
+                          }
+                        }
+
+                        if(conj.getOperator().getName().equals("H_Inv318")){
+                          if(ps.lookup("msgsAbortCommit") != null){
+                            doPropagate = true;
+                          }
+                        }
+
+                        if(!doPropagate){
+                          continue;
+                        }
+
+                        long start = System.currentTimeMillis();
+                        ret = (BoolValue)this.evalApplImpl(conj, c, ps, TLCState.Empty, EvalControl.Init, CostModel.DO_NOT_RECORD);
+                        long end = System.currentTimeMillis();
+                        this.propagationTimeMS += (end-start);
+
+                        // System.out.println("  return val: " + ret.toString());
+                        if(ret != null && !ret.val){
+                          exists_unsat_constraint = true;
+                          // System.out.println("found unsat constraint");
+                          this.numUnsatConstraints += 1;
+                          break;
+                        }
+                      } catch(TLCRuntimeException e){
+                        // Just ignore these propagation errors for now.
+                        System.out.println("Propagation error");
+                        System.out.println(e.toString());
+                        this.numPropagationErrs += 1;
                       }
-                      break;
-                    } catch(TLCRuntimeException e){
-                      // Just ignore these propagation errors for now.
-                      System.out.println("Propagation error");
-                      System.out.println(e.toString());
                     }
                   }
-                  System.out.println("END PROPAGATION");
+                  // System.out.println("END PROPAGATION");
 
                   // If there exists an UNSAT constraint, then we don't need to explore this branch
                   // any further. So, we only continue to generate states on this branch if no UNSAT
                   // constraint was found.
-                  boolean enable_constraint_propagation = true;
 
                   // Without constraint propagation we always explore down this branch.
-                  if(!enable_constraint_propagation){
+                  if(!ENABLE_CONSTRAINT_PROP){
                     this.getInitStates(acts, ps, states, cm);
                   } 
-                  else if(enable_constraint_propagation && !exists_unsat_constraint){
+                  else if(ENABLE_CONSTRAINT_PROP && !exists_unsat_constraint){
                     this.getInitStates(acts, ps, states, cm);
                   }
 
                   ps.unbind(varName);
                   count += 1;
                 }
-                System.out.printf("--- Enumerated %d elems, IN\n", count);
+                // System.out.printf("--- Enumerated %d elems, IN\n", count);
 
                 return;
               }
@@ -1908,6 +1970,7 @@ public abstract class Tool
             return this.eval(opDef.getBody(), c1, s0, s1, control, cm);
           }
           else {
+            // System.out.println("undefined or no operator.");
             Assert.fail(EC.TLC_CONFIG_UNDEFINED_OR_NO_OPERATOR,
                 new String[] { opNode.getName().toString(), expr.toString() });
           }
@@ -2077,10 +2140,10 @@ public abstract class Tool
             System.out.println("Conjunction list evalApplImpl");
             int alen = args.length;
             for (int i = 0; i < alen; i++) {
-              System.out.println(args[i].toString());
-              System.out.println(s0.toString());
+              // System.out.println(args[i].toString());
+              // System.out.println(s0.toString());
               Value bval = this.eval(args[i], c, s0, s1, control, cm);
-              System.out.println(s0.toString());
+              // System.out.println(s0.toString());
               if (!(bval instanceof BoolValue)) {
                 Assert.fail("A non-boolean expression (" + bval.getKindString() +
                             ") was used as a formula in a conjunction.\n" + args[i]);
