@@ -7,6 +7,7 @@
 package tlc2.tool.impl;
 
 import java.io.File;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 
@@ -136,6 +137,8 @@ public abstract class Tool
 
   protected final Action[] actions;     // the list of TLA actions.
   private Vect<Action> actionVec = new Vect<>(10);
+
+  private List<OpApplNode> inductive_conjuncts = new ArrayList<>();
 
   /**
    * Creates a new tool handle
@@ -404,10 +407,15 @@ public abstract class Tool
 
   protected void getInitStates(SemanticNode init, ActionItemList acts,
                                    Context c, TLCState ps, IStateFunctor states, CostModel cm) {
+        // System.out.printf("kind:%d\n", init.getKind());
+        // System.out.printf(init.toString());
+        // System.out.println("");
+
         switch (init.getKind()) {
         case OpApplKind:
           {
             OpApplNode init1 = (OpApplNode)init;
+            System.out.println(init1.toString());
             this.getInitStatesAppl(init1, acts, c, ps, states, cm);
             return;
           }
@@ -507,6 +515,7 @@ public abstract class Tool
         int alen = args.length;
         SymbolNode opNode = init.getOperator();
         int opcode = BuiltInOPs.getOpCode(opNode.getName());
+        // System.out.printf("opcode:%d\n", opcode);
 
         if (opcode == 0) {
           // This is a user-defined operator with one exception: it may
@@ -516,6 +525,7 @@ public abstract class Tool
 
           if (val instanceof OpDefNode) {
             OpDefNode opDef = (OpDefNode)val;
+            System.out.printf("Opdef node:%s\n", opDef.getName());
             opcode = BuiltInOPs.getOpCode(opDef.getName());
             if (opcode == 0) {
               // Context c1 = this.getOpContext(opDef, args, c, false);
@@ -591,6 +601,31 @@ public abstract class Tool
             for (int i = alen-1; i > 0; i--) {
               acts = (ActionItemList) acts.cons(args[i], c, cm, i);
             }
+
+            // First conjunct is 'TypeOK'.
+            if(args[0] instanceof OpApplNode && 
+              ((OpApplNode) args[0]).getOperator().getName().toString().equals("TypeOK")) {
+                
+              System.out.println("/\\ Ind CONJUNCTION LIST /\\.");
+              System.out.printf(args[0].toString() + ", list length: %d\n", args.length);
+
+              // Print each conjunct name.
+              for(ExprOrOpArgNode a : args){
+                // System.out.println("conjunct, " + a.toString());
+                // System.out.println(a.getClass().toString());
+                if(a instanceof OpApplNode){
+                  OpApplNode conj = (OpApplNode) a;
+                  String conj_name = conj.getOperator().getName().toString();
+                  System.out.println("conjunct: " + conj_name);
+
+                  // Save list of conjuncts so they are accessible.
+                  if(!conj_name.equals("TypeOK")){
+                    this.inductive_conjuncts.add(conj);
+                  }
+                }
+              }
+            }
+            
             this.getInitStates(args[0], acts, c, ps, states, cm);
             return;
           }
@@ -706,6 +741,7 @@ public abstract class Tool
               IValue lval = ps.lookup(varName);
               Value rval = this.eval(args[1], c, ps, TLCState.Empty, EvalControl.Init, cm);
               if (lval == null) {
+                System.out.printf("Binding %s\n", varName);
                 ps = ps.bind(varName, rval);
                 this.getInitStates(acts, ps, states, cm);
                 ps.unbind(varName);
@@ -740,11 +776,59 @@ public abstract class Tool
                 }
                 ValueEnumeration Enum = ((Enumerable)rval).elements();
                 Value elem;
+                int count = 0;
                 while ((elem = Enum.nextElement()) != null) {
+                  System.out.printf("=== Bound new val, %s = %s, IN\n", varName, elem.toString());
                   ps.bind(varName, elem);
-                  this.getInitStates(acts, ps, states, cm);
+                  for(String ss : ps.getVarsAsStrings()){
+                    // System.out.println(ss);
+                    if(ps.lookup(ss) != null){
+                      System.out.println("bound val: " + ss + " = " + ps.lookup(ss).toString());
+                    }
+                  }
+
+                  // Do unit/constraint propagation here first to avoid going
+                  // down branch unnecessarily?
+                  System.out.println("BEGIN PROPAGATION");
+                  BoolValue ret;
+                  boolean exists_unsat_constraint = false;
+                  for(OpApplNode conj : this.inductive_conjuncts){
+                    System.out.println("Propagating for conjunct '" + conj.getOperator().getName().toString() + "'");
+                    try{
+                      ret = (BoolValue)this.evalApplImpl(conj, c, ps, TLCState.Empty, EvalControl.Init, CostModel.DO_NOT_RECORD);
+                      System.out.println("  return val: " + ret.toString());
+                      if(!ret.val){
+                        exists_unsat_constraint = true;
+                        System.out.println("found unsat constraint");
+                        break;
+                      }
+                      break;
+                    } catch(TLCRuntimeException e){
+                      // Just ignore these propagation errors for now.
+                      System.out.println("Propagation error");
+                      System.out.println(e.toString());
+                    }
+                  }
+                  System.out.println("END PROPAGATION");
+
+                  // If there exists an UNSAT constraint, then we don't need to explore this branch
+                  // any further. So, we only continue to generate states on this branch if no UNSAT
+                  // constraint was found.
+                  boolean enable_constraint_propagation = true;
+
+                  // Without constraint propagation we always explore down this branch.
+                  if(!enable_constraint_propagation){
+                    this.getInitStates(acts, ps, states, cm);
+                  } 
+                  else if(enable_constraint_propagation && !exists_unsat_constraint){
+                    this.getInitStates(acts, ps, states, cm);
+                  }
+
                   ps.unbind(varName);
+                  count += 1;
                 }
+                System.out.printf("--- Enumerated %d elems, IN\n", count);
+
                 return;
               }
               else {
@@ -1990,9 +2074,13 @@ public abstract class Tool
           }
         case OPCODE_cl:     // ConjList
           {
+            System.out.println("Conjunction list evalApplImpl");
             int alen = args.length;
             for (int i = 0; i < alen; i++) {
+              System.out.println(args[i].toString());
+              System.out.println(s0.toString());
               Value bval = this.eval(args[i], c, s0, s1, control, cm);
+              System.out.println(s0.toString());
               if (!(bval instanceof BoolValue)) {
                 Assert.fail("A non-boolean expression (" + bval.getKindString() +
                             ") was used as a formula in a conjunction.\n" + args[i]);
@@ -2889,6 +2977,7 @@ public abstract class Tool
         case OPCODE_cl: // ConjList
         case OPCODE_land:
           {
+            System.out.println("Conjunction list enabledlApplImpl");
             ActionItemList acts1 = acts;
             for (int i = alen - 1; i > 0; i--)
             {
