@@ -739,8 +739,15 @@ public abstract class Tool
                               " is not enumerable.\n" + init);
                 }
                 ValueEnumeration Enum = ((Enumerable)rval).elements();
+                // int numElements = ((Enumerable)rval).elements().all().size();
                 Value elem;
+                // int i=0;
                 while ((elem = Enum.nextElement()) != null) {
+                  // Optionally print out elements as we go down that branch in exploration tree.
+                  // if(varName.equals("currentTerm")){
+                  //   System.out.printf("=== Bound new val, %s = %s, IN %d/%d\n", varName, elem.toString(), i, numElements);
+                  // }
+                  // i += 1;
                   ps.bind(varName, elem);
                   this.getInitStates(acts, ps, states, cm);
                   ps.unbind(varName);
