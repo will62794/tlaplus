@@ -785,11 +785,15 @@ public abstract class Tool
                 ValueEnumeration Enum = ((Enumerable)rval).elements();
                 Value elem;
 
-                boolean ENABLE_CONSTRAINT_PROP = true;
+                int domainSize = ((Enumerable)rval).elements().asSet().size();
+                // System.out.printf("Domain size for '%s': %d\n", varName.toString() ,domainSize);
+
+                boolean ENABLE_CONSTRAINT_PROP = false;
                 int count = 0;
 
                 while ((elem = Enum.nextElement()) != null) {
-                  // System.out.printf("=== Bound new val, %s = %s, IN\n", varName, elem.toString());
+                //   System.out.printf("=== Bound new val, %s = %s (%d/%d), IN\n", varName, elem.toString(), count, domainSize);
+                //   System.out.printf("=== Bound val, %s (%d/%d), IN\n", varName, count, domainSize);
 
                   this.numBranchAssigns += 1;
                   ps.bind(varName, elem);
@@ -809,7 +813,7 @@ public abstract class Tool
                     BoolValue ret;
                     for(OpApplNode conj : this.inductive_conjuncts){
                       // System.out.println("Propagating for conjunct '" + conj.getOperator().getName().toString() + "'");
-                      try{
+                    //   try{
 
                         boolean doPropagate = false;
 
@@ -820,30 +824,65 @@ public abstract class Tool
                           }
                         }
 
-                        if(conj.getOperator().getName().equals("H_Inv2000")){
-                          if(ps.lookup("rmState") != null &&
-                             ps.lookup("tmPrepared") != null &&
+                        if(conj.getOperator().getName().equals("Inv276_1_0_def")){
+                          if(ps.lookup("tmPrepared") != null &&
+                             ps.lookup("msgs") != null){
+                            doPropagate = true;
+                          }
+                        }
+
+                        if(conj.getOperator().getName().equals("Inv45_1_1_def")){
+                          if(ps.lookup("msgs") != null &&
+                             ps.lookup("rmState") != null){
+                            doPropagate = true;
+                          }
+                        }
+
+                        if(conj.getOperator().getName().equals("Inv79_1_2_def")){
+                          if(ps.lookup("tmPrepared") != null &&
+                             ps.lookup("msgs") != null){
+                            doPropagate = true;
+                          }
+                        }
+
+                        if(conj.getOperator().getName().equals("Inv349_1_3_def")){
+                          if(ps.lookup("msgs") != null &&
+                             ps.lookup("rmState") != null){
+                            doPropagate = true;
+                          }
+                        }
+
+                        if(conj.getOperator().getName().equals("Inv318_1_4_def")){
+                          if(ps.lookup("msgs") != null){
+                            doPropagate = true;
+                          }
+                        }
+
+                        if(conj.getOperator().getName().equals("Inv331_1_5_def")){
+                          if(ps.lookup("msgs") != null &&
                              ps.lookup("tmState") != null){
                             doPropagate = true;
                           }
                         }
 
-                        if(conj.getOperator().getName().equals("H_Inv9990")){
-                          if(ps.lookup("msgsPrepared") != null &&
-                             ps.lookup("msgsAbortCommit") != null){
+                        if(conj.getOperator().getName().equals("Inv334_1_6_def")){
+                          if(ps.lookup("msgs") != null &&
+                             ps.lookup("rmState") != null){
                             doPropagate = true;
                           }
                         }
 
-                        if(conj.getOperator().getName().equals("H_Inv276")){
-                          if(ps.lookup("tmPrepared") != null &&
-                             ps.lookup("msgsAbortCommit") != null){
+                        if(conj.getOperator().getName().equals("Inv344_1_7_def")){
+                          if(ps.lookup("msgs") != null &&
+                             ps.lookup("tmState") != null){
                             doPropagate = true;
                           }
                         }
 
-                        if(conj.getOperator().getName().equals("H_Inv318")){
-                          if(ps.lookup("msgsAbortCommit") != null){
+                        if(conj.getOperator().getName().equals("Inv1863_2_8_def")){
+                          if(ps.lookup("msgs") != null &&
+                             ps.lookup("tmState") != null &&
+                             ps.lookup("rmState") != null){
                             doPropagate = true;
                           }
                         }
@@ -864,12 +903,12 @@ public abstract class Tool
                           this.numUnsatConstraints += 1;
                           break;
                         }
-                      } catch(TLCRuntimeException e){
-                        // Just ignore these propagation errors for now.
-                        System.out.println("Propagation error");
-                        System.out.println(e.toString());
-                        this.numPropagationErrs += 1;
-                      }
+                    //   } catch(TLCRuntimeException e){
+                    //     // Just ignore these propagation errors for now.
+                    //     System.out.println("Propagation error");
+                    //     System.out.println(e.toString());
+                    //     this.numPropagationErrs += 1;
+                    //   }
                     }
                   }
                   // System.out.println("END PROPAGATION");
@@ -2137,7 +2176,7 @@ public abstract class Tool
           }
         case OPCODE_cl:     // ConjList
           {
-            System.out.println("Conjunction list evalApplImpl");
+            // System.out.println("Conjunction list evalApplImpl");
             int alen = args.length;
             for (int i = 0; i < alen; i++) {
               // System.out.println(args[i].toString());
