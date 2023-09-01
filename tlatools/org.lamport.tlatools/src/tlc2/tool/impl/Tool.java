@@ -600,6 +600,23 @@ public abstract class Tool
               acts = (ActionItemList) acts.cons(args[i], c, cm, i);
             }
 
+            // First conjunct is 'TypeOK'.
+            // if(args[0] instanceof OpApplNode && 
+            //   ((OpApplNode) args[0]).getOperator().getName().toString().equals("TypeOK_full")) {
+            //     System.out.println(args[0].toString());
+            //     Object val = this.lookup(((OpApplNode) args[0]).getOperator(), c, TLCState.Empty, false);
+            //     System.out.println(val);
+            //     System.out.println(val.getClass());
+            //     OpApplNode typeOKNode = (OpApplNode) args[0];
+            //     // System.out.println(typeOKNode.getBody().getTreeNode().toString());
+            //     OpDefNode valNode = (OpDefNode) val;
+            //     ExprOrOpArgNode[] typeOKargs = typeOKNode.getArgs();
+            //     System.out.println("typeOKArgs");
+            //     for(int i=0;i<typeOKargs.length;i++){
+            //         System.out.println(args[i].toString());
+            //     }
+            // }
+
             // // First conjunct is 'TypeOK'.
             // if(args[0] instanceof OpApplNode && 
             //   ((OpApplNode) args[0]).getOperator().getName().toString().equals("TypeOK")) {
@@ -772,84 +789,70 @@ public abstract class Tool
                               " is not enumerable.\n" + init);
                 }
 
-                // TODO: Enable/disable behavior below based on this flag.
                 boolean autoInitSampling = Boolean.getBoolean(Tool.class.getName() + ".autoInitStatesSampling");
 
                 // Max number of values to sample from each variable domain.
-                int domainMaxSampleValues = 50;
+                int domainMaxSampleValuesDefault = 50;
+                int autoInitSamplingMaxSampleVals = Integer.getInteger(Tool.class.getName() + ".autoInitSamplingMaxSampleVals", domainMaxSampleValuesDefault);
 
                 //
-                // On first appearance of state variable in TypeOK, either set its domain as is, or sample a subset of values 
-                // from it if it is too large.
+                // More automated approach to sampling initial states for (e.g. inductive invariance checking).
                 //
-                if(!typeOKVarsSeen.contains(varName.toString())){
-                  typeOKVarsSeen.add(varName.toString());
+                if(autoInitSampling){
+                    //
+                    // On first appearance of state variable in TypeOK, either set its domain as is, or sample a subset of values 
+                    // from it if it is too large.
+                    //
+                    if(!typeOKVarsSeen.contains(varName.toString())){
+                        typeOKVarsSeen.add(varName.toString());
 
-                  ValueEnumeration Enum = ((Enumerable)rval).elements();
-                  int _domainSize = ((Enumerable)rval).elements().all().size();
-                  System.out.printf("=== Variable %s, domain size: %d\n", varName, _domainSize);
+                        ValueEnumeration Enum = ((Enumerable)rval).elements();
+                        int _domainSize = ((Enumerable)rval).elements().all().size();
 
-                  if(_domainSize <= domainMaxSampleValues){
-                    typeOKVarDomains.put(varName.toString(), ((Enumerable)rval).elements().all());
-                  } else {
-                      // TODO: Seed this from command line specified seed.
-                      Random rand = new Random();
-                      rand.setSeed(0);
-                      double samplePct = (double) domainMaxSampleValues / (double) _domainSize;
-                      List<Value> domainValsSampled = new ArrayList<Value>();
+                        if(_domainSize <= autoInitSamplingMaxSampleVals){
+                            typeOKVarDomains.put(varName.toString(), ((Enumerable)rval).elements().all());
+                            System.out.printf("== Variable '%s', domain size: %d (original)\n", varName, _domainSize);
+                        } else {
+                            // TODO: Seed this from command line specified seed.
+                            Random rand = new Random();
+                            rand.setSeed(0);
+                            double samplePct = (double) autoInitSamplingMaxSampleVals / (double) _domainSize;
+                            List<Value> domainValsSampled = new ArrayList<Value>();
 
-                      Value elem;
-                      elem = Enum.nextElement();
-                      while ((elem = Enum.nextElement()) != null) {
-                        // Skip domain value with probability dependent on the sampling percentage.
-                        if(rand.nextDouble() < samplePct){
-                          domainValsSampled.add(elem);
+                            Value elem;
+                            elem = Enum.nextElement();
+                            while ((elem = Enum.nextElement()) != null) {
+                                // Skip domain value with probability dependent on the sampling percentage.
+                                if(rand.nextDouble() < samplePct){
+                                    domainValsSampled.add(elem);
+                                }
+                            }
+                            typeOKVarDomains.put(varName.toString(), domainValsSampled);
+                            System.out.printf("== Variable '%s', domain size: %d / %d (sampled)\n", varName, domainValsSampled.size(), _domainSize);
                         }
-                      }
-                      typeOKVarDomains.put(varName.toString(), domainValsSampled);
-                      System.out.printf("  ==> Variable %s, sampled domain size: %d\n", varName, domainValsSampled.size());
-                  }
+                    }
+
+                    // Continue with initial state generation with sampled domains.
+                    for (Value elem : typeOKVarDomains.get(varName.toString())) {
+
+                    // Optionally print out elements as we go down that branch in exploration tree.
+                    if(varName.equals("currentTerm") || varName.equals("state") || varName.equals("log")){
+                        // System.out.printf("=== Bound new val, %s = %s, IN %d/%d\n", varName, elem.toString(), domainInd, domainSize);
+                        // System.out.printf("=== sample pct IN %f\n", samplePct);
+                    }
+
+                    ps.bind(varName, elem);
+                    this.getInitStates(acts, ps, states, cm);
+                    ps.unbind(varName);
+                    }
+                    return;
                 }
 
 
+                // Do standard initial state generation.
                 ValueEnumeration Enum = ((Enumerable)rval).elements();
-                int domainSize = ((Enumerable)rval).elements().all().size();
-                // System.out.printf("Num elements: %d\n", numElements);
-                // Value elem;
-                int domainInd = 0;
-                // while ((elem = Enum.nextElement()) != null) {
-
-                // Now we sample from 
-                for (Value elem : typeOKVarDomains.get(varName.toString())) {
-
-                  // Optionally sample some percentage of each variable's full domain.
-                  // double domainSamplingPct = 1.0;
-
-                  // String samplingPctStr = System.getProperty(Tool.class.getName() + ".initStatesSamplingPct");
-                  // if(samplingPctStr != null){
-                  //     domainSamplingPct = Double.parseDouble(samplingPctStr);
-                  // }
-
-
-                  // Set 'samplePct' to get us approximately close to the max number of intended elements
-                  // for this domain.
-                  // double samplePct = (double) domainMaxSampleValues / (double) domainSize;
-
-                  // Skip ahead by one domain value with probability dependent on the sampling percentage.
-                  // if(Math.random() > domainSamplingPct){
-                  // if(Math.random() > samplePct){
-                  //   Enum.nextElement();
-                  //   domainInd += 1;
-                  // }                  
-
-                  // Optionally print out elements as we go down that branch in exploration tree.
-                  if(varName.equals("currentTerm") || varName.equals("state") || varName.equals("log")){
-                  // if(varName.equals("currentTerm") || varName.equals("state")){
-                    // System.out.printf("=== Bound new val, %s = %s, IN %d/%d\n", varName, elem.toString(), domainInd, domainSize);
-                    // System.out.printf("=== sample pct IN %f\n", samplePct);
-                  }
-
-                  domainInd += 1;
+                Value elem;
+                while ((elem = Enum.nextElement()) != null) {
                   ps.bind(varName, elem);
                   this.getInitStates(acts, ps, states, cm);
                   ps.unbind(varName);
