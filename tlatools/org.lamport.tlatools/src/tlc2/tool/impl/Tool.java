@@ -816,7 +816,6 @@ public abstract class Tool
                         } else {
                             // Seed from global seed.
 			                long seed = RandomEnumerableValues.getSeed();
-                            System.out.printf("randenum seed: %d\n", RandomEnumerableValues.getSeed());
                             Random rand = new Random();
                             rand.setSeed(seed);
 
