@@ -59,6 +59,7 @@ import tlc2.util.Vect;
 import tlc2.value.IFcnLambdaValue;
 import tlc2.value.IMVPerm;
 import tlc2.value.IValue;
+import tlc2.value.RandomEnumerableValues;
 import tlc2.value.ValueConstants;
 import tlc2.value.Values;
 import tlc2.value.impl.Applicable;
@@ -813,9 +814,12 @@ public abstract class Tool
                             typeOKVarDomains.put(varName.toString(), ((Enumerable)rval).elements().all());
                             System.out.printf("== Variable '%s', domain size: %d (original)\n", varName, _domainSize);
                         } else {
-                            // TODO: Seed this from command line specified seed.
+                            // Seed from global seed.
+			                long seed = RandomEnumerableValues.getSeed();
+                            System.out.printf("randenum seed: %d\n", RandomEnumerableValues.getSeed());
                             Random rand = new Random();
-                            rand.setSeed(0);
+                            rand.setSeed(seed);
+
                             double samplePct = (double) autoInitSamplingMaxSampleVals / (double) _domainSize;
                             List<Value> domainValsSampled = new ArrayList<Value>();
 
