@@ -33,6 +33,9 @@ public class TLCGlobals
 
     // Number of concurrent workers
     private static int numWorkers = 1;
+
+    // random seed specified at startup.
+    public static long seed = 0;
     
 	/**
 	 * Execute liveness checking when any of the disk graphs' size has increased

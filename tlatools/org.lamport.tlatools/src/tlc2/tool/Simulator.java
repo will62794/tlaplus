@@ -196,9 +196,43 @@ public class Simulator {
 		
 		TLCState curState = null;
 
-		// The init states are calculated only ever once and never change
-		// in the loops below. Ideally the variable would be final.
-		StateVec initStates = this.tool.getInitStates();
+        // The init states are calculated only ever once and never change
+        // in the loops below. Ideally the variable would be final.
+        StateVec initStates = this.tool.getInitStates();
+
+        
+        //
+        // Generate initial states by repeatedly randomly sampling states from TypeOK.
+        // We basically continue to sample until we reach some specified threshold of number of
+        // initial states generated. This is helpful for inductive invariant counterexample generation.
+        //
+        boolean autoInitSampling = Boolean.getBoolean(Tool.class.getName() + ".autoInitStatesSampling");
+        if(autoInitSampling){
+
+            int targetInitStateSetSizeDefault = 20000;
+            int autoInitSamplingTargetNumInitStates = Integer.getInteger(Tool.class.getName() + ".autoInitSamplingTargetNumInitStates", targetInitStateSetSizeDefault);
+
+            int sampleIters = 0;
+            long startTime = System.currentTimeMillis();
+
+            // Keep sampling until we reach desired target size of initial states.
+            while(initStates.size() < autoInitSamplingTargetNumInitStates){
+                StateVec newInitStates = this.tool.getInitStates();
+                // System.out.printf("round %d - init states: %d\n", i, initStates.size());
+                // totalInitStates += newInitStates.size();
+                for(int k=0;k < newInitStates.size(); k++){
+                    initStates.addElement(newInitStates.elementAt(k));
+                }
+                // Also consider adding time threshold that if reached first terminates the loop.
+                long currTime = System.currentTimeMillis();
+                long durationMS = currTime - startTime;
+
+                sampleIters += 1;
+            }
+
+            System.out.printf("Total sample iters: %d\n", sampleIters);
+            System.out.printf("Total init states calculated: %d\n", initStates.size());
+        }
 
 		//
 		// Compute the initial states.

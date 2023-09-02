@@ -644,6 +644,7 @@ public class TLC {
                         seed = Long.parseLong(args[index]);
                         index++;
                         noSeed = false;
+                        TLCGlobals.seed = seed;
                     } catch (Exception e)
                     {
                         printErrorMsg("Error: An integer for seed required. But encountered " + args[index]);
@@ -1064,6 +1065,7 @@ public class TLC {
                 if (noSeed)
                 {
                     seed = rng.nextLong();
+                    TLCGlobals.seed = seed;
                     rng.setSeed(seed);
                 } else
                 {
@@ -1079,6 +1081,7 @@ public class TLC {
                 result = simulator.simulate();
 			} else { // RunMode.MODEL_CHECK
 				if (noSeed) {
+                    TLCGlobals.seed = seed;
                     seed = rng.nextLong();
 				}
 				// Replace seed with tlc2.util.FP64.Polys[fpIndex]?
