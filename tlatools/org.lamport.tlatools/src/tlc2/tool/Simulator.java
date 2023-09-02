@@ -227,6 +227,10 @@ public class Simulator {
                 long currTime = System.currentTimeMillis();
                 long durationMS = currTime - startTime;
 
+                if(durationMS > 10000){
+                    break;
+                }
+
                 sampleIters += 1;
             }
 
