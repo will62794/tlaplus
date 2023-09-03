@@ -210,7 +210,10 @@ public class Simulator {
         if(autoInitSampling){
 
             int targetInitStateSetSizeDefault = 20000;
+            int defaultLimitMS = 10000;
+            
             int autoInitSamplingTargetNumInitStates = Integer.getInteger(Tool.class.getName() + ".autoInitSamplingTargetNumInitStates", targetInitStateSetSizeDefault);
+            int autoInitSamplingTimeLimitMS = Integer.getInteger(Tool.class.getName() + ".autoInitSamplingTimeLimitMS", defaultLimitMS);
 
             int sampleIters = 0;
             long startTime = System.currentTimeMillis();
@@ -227,11 +230,18 @@ public class Simulator {
                 long currTime = System.currentTimeMillis();
                 long durationMS = currTime - startTime;
 
-                if(durationMS > 10000){
+                if(durationMS > autoInitSamplingTimeLimitMS){
+                    System.out.printf("Sampling time limit of %d ms reached, terminating.\n", autoInitSamplingTimeLimitMS);
                     break;
                 }
 
                 sampleIters += 1;
+
+                // Print out periodic progress.
+                int progressIntervalStates = 1000;
+                if(initStates.size() % progressIntervalStates == 0 && initStates.size() > 0 && newInitStates.size() > 0){
+                    System.out.printf("Found %d initial states so far (%d states sampled)\n", initStates.size(), sampleIters);
+                }
             }
 
             System.out.printf("Total sample iters: %d\n", sampleIters);
