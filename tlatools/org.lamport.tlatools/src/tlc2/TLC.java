@@ -118,6 +118,10 @@ public class TLC {
      */
 	private long startTime;
 
+    // Max exploration depth
+    private int maxDepth = Integer.MAX_VALUE;
+
+
 	/**
 	 * Name of main TLA+ specification file.
 	 */
@@ -655,7 +659,28 @@ public class TLC {
                     printErrorMsg("Error: seed required.");
                     return false;
                 }
-            } else if (args[index].equals("-aril"))
+            } else if (args[index].equals("-maxDepth"))
+            {
+                index++;
+                if (index < args.length)
+                {
+                    try
+                    {
+                        maxDepth = Integer.parseInt(args[index]);
+                        index++;
+                        TLCGlobals.maxDepth = maxDepth;
+                    } catch (Exception e)
+                    {
+                        printErrorMsg("Error: An integer for maxDepth required. But encountered " + args[index]);
+                        return false;
+                    }
+                } else
+                {
+                    printErrorMsg("Error: seed required.");
+                    return false;
+                }
+            }  
+            else if (args[index].equals("-aril"))
             {
                 index++;
                 if (index < args.length)
@@ -1100,7 +1125,7 @@ public class TLC {
                 {
 					TLCGlobals.mainChecker = new ModelChecker(tool, metadir, stateWriter, deadlock, fromChkpt,
 							FPSetFactory.getFPSetInitialized(fpSetConfiguration, metadir, new File(mainFile).getName()),
-							startTime);
+							startTime, maxDepth);
 					modelCheckerMXWrapper = new ModelCheckerMXWrapper((ModelChecker) TLCGlobals.mainChecker, this);
 					result = TLCGlobals.mainChecker.modelCheck();
                 } else

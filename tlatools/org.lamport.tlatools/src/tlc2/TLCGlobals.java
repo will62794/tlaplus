@@ -36,6 +36,9 @@ public class TLCGlobals
 
     // random seed specified at startup.
     public static long seed = 0;
+
+    // Max exploration depth.
+    public static long maxDepth = 0;
     
 	/**
 	 * Execute liveness checking when any of the disk graphs' size has increased
@@ -125,7 +128,7 @@ public class TLCGlobals
     public static boolean warn = true;
 
     // The time interval to report progress (in milliseconds)
-    public static final int progressInterval = 1 * 60 * 1000;
+    public static final int progressInterval = 1 * 5 * 1000;
 
     // The time interval to checkpoint. (in milliseconds)
 	public static long chkptDuration = Integer.getInteger(

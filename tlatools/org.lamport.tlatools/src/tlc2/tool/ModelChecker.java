@@ -73,9 +73,12 @@ public class ModelChecker extends AbstractChecker
 	// The set of invariants, identified by name, that have been violated so far in this run.
 	public Set violatedInvs = new HashSet<String>();
 
+    // Max depth to explore in state graph.
+    int maxDepth = Integer.MAX_VALUE;
+
     /* Constructors  */
     public ModelChecker(ITool tool, String metadir, final IStateWriter stateWriter, boolean deadlock, String fromChkpt,
-            final Future<FPSet> future, long startTime) throws EvalException, IOException, InterruptedException, ExecutionException {
+            final Future<FPSet> future, long startTime, int maxDepth) throws EvalException, IOException, InterruptedException, ExecutionException {
     	this(tool, metadir, stateWriter, deadlock, fromChkpt, startTime);
     	this.theFPSet = future.get();
 
@@ -85,6 +88,8 @@ public class ModelChecker extends AbstractChecker
         {
             this.workers[i] = this.trace.addWorker(new Worker(i, this, this.metadir, this.tool.getRootName()));
         }
+
+        this.maxDepth = maxDepth;
     }
     
     public ModelChecker(ITool tool, String metadir, final IStateWriter stateWriter, boolean deadlock, String fromChkpt,
@@ -237,7 +242,7 @@ public class ModelChecker extends AbstractChecker
         try
         {
             report("running TLC");
-            result = this.runTLC(Integer.MAX_VALUE);
+            result = this.runTLC(this.maxDepth);
             if (result != EC.NO_ERROR)
             {
                 report("TLC terminated with error");
@@ -985,6 +990,11 @@ public class ModelChecker extends AbstractChecker
     protected void runTLCContinueDoing(final int count, final int depth) throws Exception
     {
         final int level = this.trace.getLevel();
+
+        // TODO: Make this a real user option.
+        int maxTimeLimitMS = 50000;
+
+        System.out.printf("doing next. depth: %d\n", depth);
         
     	printProgresStats(-1, false);
         
@@ -1009,6 +1019,18 @@ public class ModelChecker extends AbstractChecker
             // count--;
             // }
             this.wait(TLCGlobals.progressInterval);
+            System.out.println("TLC continue doing.");
+
+
+            // Terminate if we reached specified max time limit.
+            // TODO: Re-enable this.
+            // long now = System.currentTimeMillis();
+            // if((now - startTime) > maxTimeLimitMS){
+            //     System.out.println("Max model checking time limit exceeded.");
+            //     this.theStateQueue.finishAll();
+            //     this.done = true;
+            //     return;
+            // }
         }
     }
 
