@@ -994,14 +994,14 @@ public class ModelChecker extends AbstractChecker
         // TODO: Make this a real user option.
         int maxTimeLimitMS = 50000;
 
-        System.out.printf("doing next. depth: %d\n", depth);
-        
     	printProgresStats(-1, false);
         
         if (level > depth)
         {
             this.theStateQueue.finishAll();
             this.done = true;
+            System.out.printf("Reached level of %d during state exploration, greater than max depth %d. Terminating now.\n", level, depth);
+
         } else
         {
             // The following modification sof count are obviously bogus and
@@ -1019,7 +1019,6 @@ public class ModelChecker extends AbstractChecker
             // count--;
             // }
             this.wait(TLCGlobals.progressInterval);
-            System.out.println("TLC continue doing.");
 
 
             // Terminate if we reached specified max time limit.
