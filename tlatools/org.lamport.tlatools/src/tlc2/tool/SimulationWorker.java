@@ -26,6 +26,8 @@
 package tlc2.tool;
 
 import java.io.PrintWriter;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.atomic.AtomicLong;
@@ -103,6 +105,12 @@ public class SimulationWorker extends IdThread {
 	
 	// Adjacency Matrix with link weights.
 	final long[][] actionStats;
+
+    private boolean waypointMode = false;
+
+    private List<StateVec> waypointSets = new ArrayList<>();
+    // The invariants that are yet to be violated starting from a given waypoint set.
+    private List<Action> waypointInvs = new ArrayList<>();
 	
 	/**
 	 * Encapsulates information about an error produced by a simulation worker.
@@ -235,6 +243,12 @@ public class SimulationWorker extends IdThread {
 	public final void run() {
 		while(true) {
 			try {
+
+                if(this.waypointMode && this.waypointSets.isEmpty()){
+                    StateVec initWaypointSet = new StateVec(0);
+                    this.waypointSets.add(initWaypointSet);
+                } 
+                
 				// The trace simulation method should do appropriately frequent interruption
 				// checks.
 				final Optional<SimulationWorkerError> res = simulateRandomTrace();
@@ -314,6 +328,21 @@ public class SimulationWorker extends IdThread {
 
 		// a) Randomly select a state from the set of init states.
 		curState = randomState(this.localRng, initStates);
+
+        // In waypoint mode we start from a random state in the most recent previous waypoint set, if
+        // we have already populated it with some states.
+        if(this.waypointMode){
+            if(this.waypointSets.size() > 1){
+                StateVec currWaypointSet = this.waypointSets.get(this.waypointSets.size()-1);
+                StateVec prevWaypointSet = this.waypointSets.get(this.waypointSets.size()-2);
+                // boolean randChoice = localRng.nextBoolean();
+                if(prevWaypointSet.size() > 0){
+                    // System.out.printf("Starting from start state in waypoint set %d\n", this.waypointSets.size()-2 + 1);
+                    curState = randomState(this.localRng, prevWaypointSet);
+                }
+            }
+        }
+
 		setCurrentState(curState);
 		
 		boolean inConstraints = tool.isInModel(curState);
@@ -373,9 +402,51 @@ public class SimulationWorker extends IdThread {
 				int idx = 0;
 				try {
 					for (idx = 0; idx < this.tool.getInvariants().length; idx++) {
-						if (!tool.isValid(this.tool.getInvariants()[idx], state)) {
+                        boolean skipInv = false;
+
+                        // Skip checking of this invariant if it appears in a previous waypoint.
+                        if(this.waypointMode){
+                            for(int j=0;j<this.waypointInvs.size();j++){
+                                // System.out.println("Waypoint invariant:" + this.waypointInvs.get(j).getName().toString());
+                                if(this.tool.getInvariants()[idx].getName().toString().equals(this.waypointInvs.get(j).getName().toString())){
+                                    skipInv = true;
+                                    // System.out.println("Skipping invariant:" + this.tool.getInvariants()[idx].getName().toString());
+                                }
+                            }
+                        }
+
+						if (!skipInv && !tool.isValid(this.tool.getInvariants()[idx], state)) {
 							// We get here because of an invariant violation.
 							state.setActionId(index);
+
+                            // If we are in waypoint invariant checking mode,
+                            // record the state of this invariant violation and
+                            // record it as a new state in one of our "waypoint"
+                            // state set.
+                            // Maximum number of states to add per waypoint.
+                            int maxNumStatesPerWaypoint = 4;
+                            if(this.waypointMode){
+                                StateVec currWaypointSet = this.waypointSets.get(this.waypointSets.size()-1);
+
+                                System.out.println("Invariant violated.");
+                                System.out.println("Invariant name:" + this.tool.getInvariants()[idx].getName().toString());
+
+                                currWaypointSet.addElement(state);
+                                System.out.println("Added state to waypoint set:");
+                                System.out.println(state.toString());
+
+                                // Current waypoint filled up.
+                                if(currWaypointSet.size() >= maxNumStatesPerWaypoint){
+                                    // Move to new waypoint.
+                                    this.waypointInvs.add(this.tool.getInvariants()[idx]);
+                                    this.waypointSets.add(new StateVec(0));
+                                    System.out.println("New waypoint set, total sets:" + Integer.toString(this.waypointSets.size()));
+                                }
+
+                                // Finished trace generation without any errors.
+		                        return Optional.empty();
+                            }
+
 							return Optional.of(new SimulationWorkerError(EC.TLC_INVARIANT_VIOLATED_BEHAVIOR,
 									new String[] { tool.getInvNames()[idx] }, state, stateTrace, null));
 						}
