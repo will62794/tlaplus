@@ -34,6 +34,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.LongAdder;
 
 import tlc2.output.EC;
+import tlc2.tool.impl.Tool;
 import tlc2.tool.liveness.ILiveCheck;
 import tlc2.util.IdThread;
 import tlc2.util.RandomGenerator;
@@ -106,7 +107,7 @@ public class SimulationWorker extends IdThread {
 	// Adjacency Matrix with link weights.
 	final long[][] actionStats;
 
-    private boolean waypointMode = false;
+    private boolean waypointMode = Boolean.getBoolean(Tool.class.getName() + ".waypointMode");
 
     private List<StateVec> waypointSets = new ArrayList<>();
     // The invariants that are yet to be violated starting from a given waypoint set.
