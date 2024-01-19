@@ -27,7 +27,7 @@ public final class Action implements ToolGlobals, Serializable {
 	// Equals the empty string if S = {}.
 	// Example: (a, b, 42, fizzbuzz)
 	private static final Collector<CharSequence, StringJoiner, String> PARAMETER_LIST = Collector.of(
-			() -> new StringJoiner(",", "(", ")").setEmptyValue(""), StringJoiner::add, StringJoiner::merge,
+			() -> new StringJoiner("$$", "$$", "$$").setEmptyValue(""), StringJoiner::add, StringJoiner::merge,
 			StringJoiner::toString);
 	
 	private static final UniqueString UNNAMED_ACTION = UniqueString.uniqueStringOf("UnnamedAction");
@@ -97,7 +97,7 @@ public final class Action implements ToolGlobals, Serializable {
   }
   
   public final String getLocation(final String actionName) {
-	return String.format("<%s%s %s>", actionName,
+	return String.format("<$$%s%s %s>", actionName,
 			Arrays.stream(opDef != null ? opDef.getParams() : new FormalParamNode[0]).map(p -> con.lookup(p))
 					.filter(o -> o != null).map(Object::toString)
 					.collect(PARAMETER_LIST),
