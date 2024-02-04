@@ -84,6 +84,8 @@ public class DotStateWriter extends StateWriter {
 	
 	// Determines whether or not stuttering edges should be rendered.
 	private final boolean stuttering;
+
+    private HashSet<String> writtenNodeIds;
 	
 	public DotStateWriter() throws IOException {
 		this("DotStateWriter.dot", "", false, false, false, false, false);
@@ -136,6 +138,7 @@ public class DotStateWriter extends StateWriter {
 		this.writer.append("subgraph cluster_graph {\n"); 
         this.writer.append("color=\"white\";\n"); // no border.
 		this.writer.flush();
+        this.writtenNodeIds = new HashSet<>();
 	}
 
 	/* (non-Javadoc)
@@ -154,12 +157,22 @@ public class DotStateWriter extends StateWriter {
 	 * @see tlc2.util.StateWriter#writeState(tlc2.tool.TLCState)
 	 */
 	public synchronized void writeState(final TLCState state) {
+        String nodeId = Long.toString(states2dot(state.evalStateLevelAlias()).hashCode());
+        // Don't write the same node ids twice.
+        if(this.writtenNodeIds.contains(nodeId)){
+            return;
+        }
+
 		// Marker the state as an initial state by using a filled style.
-		this.writer.append(Long.toString(state.fingerPrint()));
+		// this.writer.append(Long.toString(state.fingerPrint()));
+        this.writer.append(nodeId);
 		this.writer.append(" [label=\"");
 		this.writer.append(states2dot(state.evalStateLevelAlias()));
 		this.writer.append("\",style = filled]");
 		this.writer.append("\n");
+
+        this.writtenNodeIds.add(nodeId);
+        System.out.println(this.writtenNodeIds.size());
 		
 		maintainRanks(state);
 		
@@ -213,10 +226,17 @@ public class DotStateWriter extends StateWriter {
 			// Do not render stuttering transitions unless requested.
 			return;
 		}
-		final String successorsFP = Long.toString(successor.fingerPrint());
+		// final String successorsFP = Long.toString(successor.fingerPrint());
+        // successor.evalStateLevelAlias().fingerPrint()
+        // TLCState aliasVal = state.evalStateLevelAlias();
+        // System.out.println(aliasVal.toString());
+        // aliasVal.deepNormalize();
+		// final String successorsFP = Long.toString(state.evalStateLevelAlias().fingerPrint());
+		final String successorsFP = Long.toString(states2dot(successor.evalStateLevelAlias()).hashCode());
 		
 		// Write the transition edge.
-		this.writer.append(Long.toString(state.fingerPrint()));
+		// this.writer.append(Long.toString(state.fingerPrint()));
+		this.writer.append(Long.toString(states2dot(state.evalStateLevelAlias()).hashCode()));
 		this.writer.append(" -> ");
 		this.writer.append(successorsFP);
 		if (visualization == Visualization.STUTTERING) {
@@ -234,7 +254,12 @@ public class DotStateWriter extends StateWriter {
 			// when writeState sees the successor. It does not print the label for
 			// the current state. If it would print the label for the current state,
 			// the init state labels would be printed twice.
-	    	if (!isSet(stateFlags, IStateWriter.IsSeen)) {
+	    	if (!isSet(stateFlags, IStateWriter.IsSeen) && !this.writtenNodeIds.contains(successorsFP)) {
+
+                // Mark the new node as written.
+                this.writtenNodeIds.add(successorsFP);
+                System.out.println(this.writtenNodeIds.size());
+
 				// Write the successor's label.
 				this.writer.append(successorsFP);
 				this.writer.append(" [label=\"");
@@ -373,11 +398,11 @@ public class DotStateWriter extends StateWriter {
 	 */
 	public void close() {
 		for (final Set<Long> entry : rankToNodes.values()) {
-			this.writer.append("{rank = same; ");
-			for (final Long l : entry) {
-				this.writer.append(l + ";");
-			}
-			this.writer.append("}\n");
+			// this.writer.append("{rank = same; ");
+			// for (final Long l : entry) {
+			// 	this.writer.append(l + ";");
+			// }
+			// this.writer.append("}\n");
 		}
 		this.writer.append("}\n"); // closes the main subgraph.
 		// We only need the legend if the edges are colored by action and there is more
