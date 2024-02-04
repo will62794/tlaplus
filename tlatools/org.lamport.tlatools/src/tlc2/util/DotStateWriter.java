@@ -172,7 +172,6 @@ public class DotStateWriter extends StateWriter {
 		this.writer.append("\n");
 
         this.writtenNodeIds.add(nodeId);
-        System.out.println(this.writtenNodeIds.size());
 		
 		maintainRanks(state);
 		
