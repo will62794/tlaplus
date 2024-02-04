@@ -257,7 +257,6 @@ public class DotStateWriter extends StateWriter {
 
                 // Mark the new node as written.
                 this.writtenNodeIds.add(successorsFP);
-                System.out.println(this.writtenNodeIds.size());
 
 				// Write the successor's label.
 				this.writer.append(successorsFP);
