@@ -50,6 +50,7 @@ public final class Worker extends IdThread implements IWorker, INextStateFunctor
 	private long statesGenerated;
 	private int unseenSuccessorStates = 0;
 	private volatile int maxLevel = 0;
+    private long invCheckDuration = 0;
 
 	// SZ Feb 20, 2009: changed due to super type introduction
 	public Worker(int id, AbstractChecker tlc, String metadir, String specFile) throws IOException {
@@ -82,6 +83,8 @@ public final class Worker extends IdThread implements IWorker, INextStateFunctor
 				curState = this.squeue.sDequeue();
 				if (curState == null) {
 					synchronized (this.tlc) {
+                        System.out.printf("Total time spent checking invariant: %dms (%s)\n", invCheckDuration / (1000*1000), this.getName());
+
 						if(!this.tlc.setDone()) {
 							doPostConditionCheck();
 						}
@@ -439,6 +442,7 @@ public final class Worker extends IdThread implements IWorker, INextStateFunctor
 			// worker.
 
 			if(TLCGlobals.checkAllInvariants){
+                long start = System.nanoTime();
 				for (k = 0; k < this.tool.getInvariants().length; k++){
 					// If the invariant has already been violated, there is no need
 					// to check it again, since we already know it is not a true invariant.
@@ -462,6 +466,9 @@ public final class Worker extends IdThread implements IWorker, INextStateFunctor
 						}
 					}
 				}
+                long end = System.nanoTime();
+                long duration = end - start;
+                this.invCheckDuration += duration;
 				// Don't terminate the worker.
 				return false;
 			}
