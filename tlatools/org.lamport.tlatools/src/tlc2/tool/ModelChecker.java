@@ -78,7 +78,7 @@ public class ModelChecker extends AbstractChecker
 
     /* Constructors  */
     public ModelChecker(ITool tool, String metadir, final IStateWriter stateWriter, boolean deadlock, String fromChkpt,
-            final Future<FPSet> future, long startTime, int maxDepth) throws EvalException, IOException, InterruptedException, ExecutionException {
+            final Future<FPSet> future, long startTime, int maxDepth, boolean cacheStates) throws EvalException, IOException, InterruptedException, ExecutionException {
     	this(tool, metadir, stateWriter, deadlock, fromChkpt, startTime);
     	this.theFPSet = future.get();
 
@@ -86,7 +86,7 @@ public class ModelChecker extends AbstractChecker
         this.workers = new Worker[TLCGlobals.getNumWorkers()];
         for (int i = 0; i < this.workers.length; i++)
         {
-            this.workers[i] = this.trace.addWorker(new Worker(i, this, this.metadir, this.tool.getRootName()));
+            this.workers[i] = this.trace.addWorker(new Worker(i, this, this.metadir, this.tool.getRootName(), cacheStates));
         }
 
         this.maxDepth = maxDepth;

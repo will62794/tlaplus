@@ -23,6 +23,8 @@ import tlc2.util.IdThread;
 import tlc2.util.SetOfStates;
 import tlc2.util.statistics.FixedSizedBucketStatistics;
 import tlc2.util.statistics.IBucketStatistics;
+import tlc2.value.ValueInputStream;
+import tlc2.value.ValueOutputStream;
 import util.FileUtil;
 import util.WrongInvocationException;
 
@@ -52,6 +54,10 @@ public final class Worker extends IdThread implements IWorker, INextStateFunctor
 	private volatile int maxLevel = 0;
     private long invCheckDuration = 0;
 
+    private boolean cacheStates = false;
+    private String stateCacheFileName;
+    private ValueOutputStream vos;
+
 	// SZ Feb 20, 2009: changed due to super type introduction
 	public Worker(int id, AbstractChecker tlc, String metadir, String specFile) throws IOException {
 		super(id);
@@ -71,6 +77,53 @@ public final class Worker extends IdThread implements IWorker, INextStateFunctor
 		this.raf = new BufferedRandomAccessFile(filename + TLCTrace.EXT, "rw");
 	}
 
+    public Worker(int id, AbstractChecker tlc, String metadir, String specFile, boolean cacheStates) throws IOException {
+        this(id, tlc, metadir, specFile);
+
+        this.cacheStates = cacheStates;
+        if(this.cacheStates){
+            this.stateCacheFileName = "statecache-" + specFile + "-" + myGetId();
+        }
+    }
+
+    public void loadAndCheckCachedStates() throws IOException {
+        System.out.println("Attempting to load cached states from " + this.stateCacheFileName);
+        ValueInputStream vis = new ValueInputStream(this.stateCacheFileName);
+        int N = 35000;
+        for (int i = 0; i < N; i++) {
+            TLCState s = TLCState.Empty.createEmpty();
+            s.read(vis);
+            // System.out.println("Serialized state:");
+            // System.out.println(s.toString());
+
+            for (int k = 0; k < this.tool.getInvariants().length; k++){
+            if (!tool.isValid(this.tool.getInvariants()[k], s)){
+                synchronized (this.tlc)
+                {
+                    try{
+                        System.out.println("Invariant violated:" + this.tool.getInvNames()[k]);
+                        // this.tlc.doNextSetErr(s, TLCState.Empty, false, 
+                            // EC.TLC_INVARIANT_VIOLATED_BEHAVIOR, this.tool.getInvNames()[0]);
+                        int ec = EC.TLC_INVARIANT_VIOLATED_BEHAVIOR;
+                        if (this.tlc.setErrState(s, TLCState.Empty, false, ec))
+                        {
+                            // MP.printError(ec);
+                            System.out.printf("Invariant %s is violated.\n", this.tool.getInvNames()[k]);
+                            System.out.println(s.toString());
+                            this.tlc.theStateQueue.finishAll();
+                            this.tlc.notify();
+                        }
+
+                    } catch(Exception e){
+                        e.printStackTrace();
+                    }
+                    return;
+                }
+            }
+        }
+        }
+    }
+
 	/**
    * This method gets a state from the queue, generates all the
    * possible next states of the state, checks the invariants, and
@@ -78,10 +131,41 @@ public final class Worker extends IdThread implements IWorker, INextStateFunctor
 	 */
 	public void run() {
 		TLCState curState = null;
+
+        // If we are runningin cacheState mode, then we try to load cached states and check invariants on those states.
+        // Otherwise, we run normal model checking and cache the generated states to a file.
+
+        if(this.cacheStates){
+            try{
+                long start = System.currentTimeMillis();
+                loadAndCheckCachedStates();
+                long end = System.currentTimeMillis();
+                System.out.printf("Loaded %d serialized states and checked %d invs in %dms\n", this.tool.getInvariants().length, this.tool.getInvariants().length , end-start);
+
+                synchronized (this.tlc) {
+                    if(!this.tlc.setDone()) {
+                        // doPostConditionCheck();
+                    }
+                    this.tlc.notify();
+                }
+                return;
+            } catch(IOException e){
+                System.out.println("Failed to load " + this.stateCacheFileName + ", proceeding to full model checking run.");
+            }
+
+            // Initialize state cache output stream.
+            try{
+                this.vos = new ValueOutputStream(this.stateCacheFileName);
+            } catch(IOException e){}
+        }
+
 		try {
 			while (true) {
 				curState = this.squeue.sDequeue();
 				if (curState == null) {
+                    if(this.cacheStates){
+                        this.vos.close();
+                    }
 					synchronized (this.tlc) {
                         System.out.printf("Total time spent checking invariant: %dms (%s)\n", invCheckDuration / (1000*1000), this.getName());
 
@@ -440,6 +524,11 @@ public final class Worker extends IdThread implements IWorker, INextStateFunctor
 			// If the option is set, record this invariant, violation, 
 			// continue checking all other invariants, and don't halt the
 			// worker.
+
+            if(this.cacheStates){
+                // Write state to output file.
+                curState.write(this.vos);
+            }
 
 			if(TLCGlobals.checkAllInvariants){
                 long start = System.nanoTime();

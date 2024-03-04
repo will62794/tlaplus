@@ -121,6 +121,9 @@ public class TLC {
     // Max exploration depth
     private int maxDepth = Integer.MAX_VALUE;
 
+    // Whether to have workers cache and reload states from disk for checking invariants.
+    private boolean cacheStates = false;
+
 
 	/**
 	 * Name of main TLA+ specification file.
@@ -679,7 +682,11 @@ public class TLC {
                     printErrorMsg("Error: seed required.");
                     return false;
                 }
-            }  
+            } else if (args[index].equals("-cacheStates"))
+            {
+                index++;
+                cacheStates = true;
+            } 
             else if (args[index].equals("-aril"))
             {
                 index++;
@@ -1125,7 +1132,7 @@ public class TLC {
                 {
 					TLCGlobals.mainChecker = new ModelChecker(tool, metadir, stateWriter, deadlock, fromChkpt,
 							FPSetFactory.getFPSetInitialized(fpSetConfiguration, metadir, new File(mainFile).getName()),
-							startTime, maxDepth);
+							startTime, maxDepth, this.cacheStates);
 					modelCheckerMXWrapper = new ModelCheckerMXWrapper((ModelChecker) TLCGlobals.mainChecker, this);
 					result = TLCGlobals.mainChecker.modelCheck();
                 } else
