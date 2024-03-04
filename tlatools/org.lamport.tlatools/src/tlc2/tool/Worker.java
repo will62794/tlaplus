@@ -57,6 +57,7 @@ public final class Worker extends IdThread implements IWorker, INextStateFunctor
     private boolean cacheStates = false;
     private String stateCacheFileName;
     private ValueOutputStream vos;
+    private int cacheStateCount = 0;
 
 	// SZ Feb 20, 2009: changed due to super type introduction
 	public Worker(int id, AbstractChecker tlc, String metadir, String specFile) throws IOException {
@@ -86,15 +87,23 @@ public final class Worker extends IdThread implements IWorker, INextStateFunctor
         }
     }
 
-    public void loadAndCheckCachedStates() throws IOException {
-        System.out.println("Attempting to load cached states from " + this.stateCacheFileName);
+    public int loadAndCheckCachedStates() throws IOException {
+        System.out.println("Attempting to load cached states from '" + this.stateCacheFileName + "'");
+
+        // Load the number of states.
+        ValueInputStream countVis = new ValueInputStream(this.stateCacheFileName + "-count");
+        int stateCount = countVis.readInt();
+        countVis.close();
+        System.out.printf("Read count of %d cached states.\n", stateCount);
+
         ValueInputStream vis = new ValueInputStream(this.stateCacheFileName);
-        int N = 35000;
-        for (int i = 0; i < N; i++) {
+        int i;
+        for (i = 0; i < stateCount; i++) {
             TLCState s = TLCState.Empty.createEmpty();
             s.read(vis);
-            // System.out.println("Serialized state:");
-            // System.out.println(s.toString());
+            if(i % 100000 == 0 && i > 0){
+                System.out.printf("[TLCWorker-%d] Read %d / %d states.\n", this.myGetId() ,i, stateCount);
+            }
 
             for (int k = 0; k < this.tool.getInvariants().length; k++){
             if (!tool.isValid(this.tool.getInvariants()[k], s)){
@@ -117,11 +126,12 @@ public final class Worker extends IdThread implements IWorker, INextStateFunctor
                     } catch(Exception e){
                         e.printStackTrace();
                     }
-                    return;
+                    return i;
                 }
             }
         }
         }
+        return i;
     }
 
 	/**
@@ -138,9 +148,9 @@ public final class Worker extends IdThread implements IWorker, INextStateFunctor
         if(this.cacheStates){
             try{
                 long start = System.currentTimeMillis();
-                loadAndCheckCachedStates();
+                int numStates = loadAndCheckCachedStates();
                 long end = System.currentTimeMillis();
-                System.out.printf("Loaded %d serialized states and checked %d invs in %dms\n", this.tool.getInvariants().length, this.tool.getInvariants().length , end-start);
+                System.out.printf("Loaded %d serialized states and checked %d invs in %dms\n", numStates, this.tool.getInvariants().length , end-start);
 
                 synchronized (this.tlc) {
                     if(!this.tlc.setDone()) {
@@ -150,7 +160,7 @@ public final class Worker extends IdThread implements IWorker, INextStateFunctor
                 }
                 return;
             } catch(IOException e){
-                System.out.println("Failed to load " + this.stateCacheFileName + ", proceeding to full model checking run.");
+                System.out.println("Failed to load '" + this.stateCacheFileName + "'', proceeding to full model checking run.");
             }
 
             // Initialize state cache output stream.
@@ -165,6 +175,9 @@ public final class Worker extends IdThread implements IWorker, INextStateFunctor
 				if (curState == null) {
                     if(this.cacheStates){
                         this.vos.close();
+                        ValueOutputStream countVos = new ValueOutputStream(this.stateCacheFileName + "-count");
+                        countVos.writeInt(cacheStateCount);
+                        countVos.close();
                     }
 					synchronized (this.tlc) {
                         System.out.printf("Total time spent checking invariant: %dms (%s)\n", invCheckDuration / (1000*1000), this.getName());
@@ -528,6 +541,7 @@ public final class Worker extends IdThread implements IWorker, INextStateFunctor
             if(this.cacheStates){
                 // Write state to output file.
                 curState.write(this.vos);
+                cacheStateCount += 1;
             }
 
 			if(TLCGlobals.checkAllInvariants){
