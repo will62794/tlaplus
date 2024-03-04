@@ -9,6 +9,8 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.IOException;
+import java.util.HashSet;
+import java.util.Map;
 
 import tla2sany.semantic.ExprNode;
 import tlc2.TLCGlobals;
@@ -23,9 +25,11 @@ import tlc2.util.IdThread;
 import tlc2.util.SetOfStates;
 import tlc2.util.statistics.FixedSizedBucketStatistics;
 import tlc2.util.statistics.IBucketStatistics;
+import tlc2.value.IValue;
 import tlc2.value.ValueInputStream;
 import tlc2.value.ValueOutputStream;
 import util.FileUtil;
+import util.UniqueString;
 import util.WrongInvocationException;
 
 public final class Worker extends IdThread implements IWorker, INextStateFunctor {
@@ -59,6 +63,8 @@ public final class Worker extends IdThread implements IWorker, INextStateFunctor
     private ValueOutputStream vos;
     private int cacheStateCount = 0;
 
+    private HashSet<Long> localSeenSet;
+
 	// SZ Feb 20, 2009: changed due to super type introduction
 	public Worker(int id, AbstractChecker tlc, String metadir, String specFile) throws IOException {
 		super(id);
@@ -84,6 +90,7 @@ public final class Worker extends IdThread implements IWorker, INextStateFunctor
         this.cacheStates = cacheStates;
         if(this.cacheStates){
             this.stateCacheFileName = "statecache-" + specFile + "-" + myGetId();
+            localSeenSet = new HashSet<Long>();
         }
     }
 
@@ -542,6 +549,31 @@ public final class Worker extends IdThread implements IWorker, INextStateFunctor
                 // Write state to output file.
                 curState.write(this.vos);
                 cacheStateCount += 1;
+
+                // //
+                // // Experimental state projection.
+                // //
+                // long fp = 0;
+                // Map<UniqueString, IValue> vals = curState.getVals();
+                // //for loop to iterate over keys of the Map.
+                // for (Map.Entry<UniqueString, IValue> entry : vals.entrySet()) {
+                //     UniqueString key = entry.getKey();
+                //     IValue val = entry.getValue();
+                //     // epochID,nodeLastWriteTS,nodeLastWriter,nodeRcvedAcks,nodeWriteEpochID
+                //     if(!key.toString().equals("nodeLastWriteTS") && 
+                //        !key.toString().equals("nodeRcvedAcks") &&
+                //        !key.toString().equals("nodeLastWriter") &&
+                //        !key.toString().equals("nodeWriteEpochID") &&
+                //        !key.toString().equals("epochID")){
+                //         fp = val.fingerPrint(fp);
+                //     }
+                // }
+                
+                // if(!localSeenSet.contains(fp)){
+                //     curState.write(this.vos);
+                //     cacheStateCount += 1;
+                //     localSeenSet.add(fp);
+                // }
             }
 
 			if(TLCGlobals.checkAllInvariants){
