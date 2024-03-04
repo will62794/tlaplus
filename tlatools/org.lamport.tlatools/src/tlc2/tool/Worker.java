@@ -9,6 +9,7 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Map;
 
@@ -547,33 +548,38 @@ public final class Worker extends IdThread implements IWorker, INextStateFunctor
 
             if(this.cacheStates){
                 // Write state to output file.
-                curState.write(this.vos);
-                cacheStateCount += 1;
+                // curState.write(this.vos);
+                // cacheStateCount += 1;
 
-                // //
-                // // Experimental state projection.
-                // //
-                // long fp = 0;
-                // Map<UniqueString, IValue> vals = curState.getVals();
-                // //for loop to iterate over keys of the Map.
-                // for (Map.Entry<UniqueString, IValue> entry : vals.entrySet()) {
-                //     UniqueString key = entry.getKey();
-                //     IValue val = entry.getValue();
-                //     // epochID,nodeLastWriteTS,nodeLastWriter,nodeRcvedAcks,nodeWriteEpochID
-                //     if(!key.toString().equals("nodeLastWriteTS") && 
-                //        !key.toString().equals("nodeRcvedAcks") &&
-                //        !key.toString().equals("nodeLastWriter") &&
-                //        !key.toString().equals("nodeWriteEpochID") &&
-                //        !key.toString().equals("epochID")){
-                //         fp = val.fingerPrint(fp);
-                //     }
-                // }
+                // epochID,msgs,nodeLastWriteTS,nodeLastWriter,nodeWriteEpochID
+                HashSet<String> ignoredVars = new HashSet<>();
+
+                // Add ignored vars, if any.
+                // ignoredVars.add("epochID");
+                // ignoredVars.add("msgs");
+                // ignoredVars.add("nodeLastWriteTS");
+                // ignoredVars.add("nodeLastWriter");
+                // ignoredVars.add("nodeWriteEpochID");
                 
-                // if(!localSeenSet.contains(fp)){
-                //     curState.write(this.vos);
-                //     cacheStateCount += 1;
-                //     localSeenSet.add(fp);
-                // }
+                //
+                // Experimental state projection.
+                //
+                long fp = 0;
+                Map<UniqueString, IValue> vals = curState.getVals();
+                //for loop to iterate over keys of the Map.
+                for (Map.Entry<UniqueString, IValue> entry : vals.entrySet()) {
+                    UniqueString key = entry.getKey();
+                    IValue val = entry.getValue();
+                    if(!ignoredVars.contains(key.toString())){
+                        fp = val.fingerPrint(fp);
+                    }
+                }
+                
+                if(!localSeenSet.contains(fp)){
+                    curState.write(this.vos);
+                    cacheStateCount += 1;
+                    localSeenSet.add(fp);
+                }
             }
 
 			if(TLCGlobals.checkAllInvariants){
