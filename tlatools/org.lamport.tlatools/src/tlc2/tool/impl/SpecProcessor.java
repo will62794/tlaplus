@@ -368,8 +368,9 @@ public class SpecProcessor implements ValueConstants, ToolGlobals {
 				String.format(" Module-Table lookup failure for module name %s derived from %s file name.",
 						rootName.toString(), this.rootFile));
 
-        // Get all the state variables in the spec:
+        // Enforce consistent ordering when setting variables (seems needed for consistency across caching runs).
         OpDeclNode[] varDecls = this.rootModule.getVariableDecls();
+        Arrays.sort(varDecls, (OpDeclNode a, OpDeclNode b) -> a.getName().toString().compareTo(b.getName().toString()));
 
         this.variablesNodes = new OpDeclNode[varDecls.length];
         UniqueString[] varNames = new UniqueString[varDecls.length];
@@ -732,6 +733,10 @@ public class SpecProcessor implements ValueConstants, ToolGlobals {
 			TLAPlusExecutorState.setVariables(this.variablesNodes);
 		} else {
 			assert mode == Mode.MC;
+            System.out.println("Setting variables:");
+            for(int j=0;j<this.variablesNodes.length;j++){
+                System.out.printf("- %s\n", this.variablesNodes[j].getName().toString());
+            }   
 			TLCStateMut.setVariables(this.variablesNodes);
 		}
 

@@ -1108,6 +1108,15 @@ public class TLC {
                 // We must recover the intern var table as early as possible
                 UniqueString.internTbl.recover(fromChkpt);
             }
+            
+            // Load the cached UniqueString intern table if we are loading cached states.
+            if(this.cacheStates && TLCGlobals.cacheStatesMode.equals("load")){
+                String fname = "statecache-internTbl";
+                UniqueString.internTbl.chkptNameUsesFileSep = false;
+                UniqueString.internTbl.recover(fname);
+                System.out.println("Recovered UniqueString table from " + fname);
+            }
+
             FP64.Init(fpIndex);
     		
     		final RandomGenerator rng = new RandomGenerator();

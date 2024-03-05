@@ -159,7 +159,7 @@ public class ModelChecker extends AbstractChecker
             {
                 report("doInit(false)");
                 MP.printMessage(EC.TLC_COMPUTING_INIT);
-                // Don't compute initial states here if we are caching.
+                // Don't compute initial states here if we are loading from cache.
                 if(!this.cacheStates || !TLCGlobals.cacheStatesMode.equals("load")){
                     // SZ Feb 23, 2009: do not ignore cancel on creation of the init states
                     result = this.doInit(false);
@@ -861,6 +861,14 @@ public class ModelChecker extends AbstractChecker
 			checkpoint();
 			vetoCleanup = true;
 		}
+
+        // Checkpoint the UniqueString table if we are caching.
+        if(this.cacheStates && TLCGlobals.cacheStatesMode.equals("cache")){
+            String fname = "statecache-internTbl";
+            UniqueString.internTbl.chkptNameUsesFileSep = false;
+            UniqueString.internTbl.beginChkpt(fname);
+            UniqueString.internTbl.commitChkpt(fname);
+        }
     	
         this.theFPSet.close();
         this.trace.close();

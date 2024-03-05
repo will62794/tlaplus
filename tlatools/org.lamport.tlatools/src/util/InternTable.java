@@ -27,6 +27,8 @@ public final class InternTable implements Serializable
                         // needs to be grown.
     private UniqueString[] table;  // The array that holds the entries.
 
+    public boolean chkptNameUsesFileSep = true;
+
     // SZ 10.04.2009: removed unused variable
     // made token counter to instance variable, since there is only one instance of the InternTable
     private int tokenCnt = 0; // the token counter
@@ -191,7 +193,8 @@ public final class InternTable implements Serializable
 
     private String chkptName(String filename, String ext)
     {
-        return filename + FileUtil.separator + "vars." + ext;
+        String sep = chkptNameUsesFileSep ? FileUtil.separator : ".";
+        return filename + sep + "vars." + ext;
     }
 
 	public void setSource(InternRMI source) {

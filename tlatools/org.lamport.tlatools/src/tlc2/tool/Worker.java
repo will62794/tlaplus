@@ -119,13 +119,22 @@ public final class Worker extends IdThread implements IWorker, INextStateFunctor
             }
 
             // for (int k = 0; k < this.tool.getInvariants().length; k++){
-                try{
-                    // System.out.println(s.toString());
-                    // this.doNextCheckInvariants(s, TLCState.Empty);
-                    this.doNextCheckInvariants(s,s);
-                } catch(Exception e){
-                    e.printStackTrace();
-                }
+
+            try{
+                // String[] vars = s.getVarsAsStrings();
+                // Print each var:
+                // for(int j=0;j<vars.length;j++){
+                    // System.out.printf("- %s\n", vars[j]);
+                // }   
+
+                // System.out.println(s.toString());
+                this.doNextCheckInvariants(s, s);
+            } catch(Exception e){
+                e.printStackTrace();
+                vis.close();
+                return i;
+            }
+
                 // if (!tool.isValid(this.tool.getInvariants()[k], s)){
                 //     synchronized (this.tlc)a
                 //     {
@@ -151,6 +160,7 @@ public final class Worker extends IdThread implements IWorker, INextStateFunctor
                 // }
             // }
         }
+        vis.close();
         return i;
     }
 
@@ -486,7 +496,7 @@ public final class Worker extends IdThread implements IWorker, INextStateFunctor
                     // Experimental state projection.
                     //
                     long fp = 0;
-                    Map<UniqueString, IValue> vals = curState.getVals();
+                    Map<UniqueString, IValue> vals = succState.getVals();
                     //for loop to iterate over keys of the Map.
                     for (Map.Entry<UniqueString, IValue> entry : vals.entrySet()) {
                         UniqueString key = entry.getKey();
@@ -496,9 +506,17 @@ public final class Worker extends IdThread implements IWorker, INextStateFunctor
                         }
                     }
                     
+
                     if(!localSeenSet.contains(fp)){
                         // Write state to output file andu update count.
-                        curState.write(this.vos);
+                        // String[] vars = succState.getVarsAsStrings();
+                        // Print each var:
+                        // for(int j=0;j<vars.length;j++){
+                            // System.out.printf("- %s\n", vars[j]);
+                        // } 
+                        // System.out.println("===");
+
+                        succState.write(this.vos);
                         cacheStateCount += 1;
                         localSeenSet.add(fp);
                     }
@@ -586,35 +604,40 @@ public final class Worker extends IdThread implements IWorker, INextStateFunctor
 			// continue checking all other invariants, and don't halt the
 			// worker.
 			if(TLCGlobals.checkAllInvariants){
-                long start = System.nanoTime();
-				for (k = 0; k < this.tool.getInvariants().length; k++){
-					// If the invariant has already been violated, there is no need
-					// to check it again, since we already know it is not a true invariant.
-					String invName = tool.getInvNames()[k];
-					if(this.tlc.violatedInvs.contains(invName)){
-						// Move on to the next invariant.
-						continue;
-					}
+                try{
+                    long start = System.nanoTime();
+                    for (k = 0; k < this.tool.getInvariants().length; k++){
+                        // If the invariant has already been violated, there is no need
+                        // to check it again, since we already know it is not a true invariant.
+                        String invName = tool.getInvNames()[k];
+                        if(this.tlc.violatedInvs.contains(invName)){
+                            // Move on to the next invariant.
+                            continue;
+                        }
 
-					// The invariant is violated.
-					if (!tool.isValid(this.tool.getInvariants()[k], succState)){
-						synchronized (this.tlc)
-						{
-							// If this invariant has not already been violated
-							// previously, record it and print out the record
-							// of the violation.
-							if(!this.tlc.violatedInvs.contains(invName)){
-								this.tlc.violatedInvs.add(invName);
-								MP.printError(EC.TLC_INVARIANT_VIOLATED_BEHAVIOR, invName);
-							}
-						}
-					}
-				}
-                long end = System.nanoTime();
-                long duration = end - start;
-                this.invCheckDuration += duration;
-				// Don't terminate the worker.
-				return false;
+                        // The invariant is violated.
+                        if (!tool.isValid(this.tool.getInvariants()[k], succState)){
+                            synchronized (this.tlc)
+                            {
+                                // If this invariant has not already been violated
+                                // previously, record it and print out the record
+                                // of the violation.
+                                if(!this.tlc.violatedInvs.contains(invName)){
+                                    this.tlc.violatedInvs.add(invName);
+                                    MP.printError(EC.TLC_INVARIANT_VIOLATED_BEHAVIOR, invName);
+                                }
+                            }
+                        }
+                    }
+                    long end = System.nanoTime();
+                    long duration = end - start;
+                    this.invCheckDuration += duration;
+                    // Don't terminate the worker.
+                    return false;
+                } catch (Exception e){
+                    e.printStackTrace();
+                    return true;
+                }
 			}
 
 			for (k = 0; k < this.tool.getInvariants().length; k++)
