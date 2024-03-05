@@ -65,6 +65,7 @@ public final class Worker extends IdThread implements IWorker, INextStateFunctor
     private int cacheStateCount = 0;
 
     private HashSet<Long> localSeenSet;
+    HashSet<String> ignoredVarsForCache = new HashSet<>();
 
 	// SZ Feb 20, 2009: changed due to super type introduction
 	public Worker(int id, AbstractChecker tlc, String metadir, String specFile) throws IOException {
@@ -92,6 +93,10 @@ public final class Worker extends IdThread implements IWorker, INextStateFunctor
         if(this.cacheStates){
             this.stateCacheFileName = "statecache-" + specFile + "-" + myGetId();
             localSeenSet = new HashSet<Long>();
+
+            for(int i=0;i<TLCGlobals.cacheStatesIgnoreVars.length;i++){
+                ignoredVarsForCache.add(TLCGlobals.cacheStatesIgnoreVars[i]);
+            }
         }
     }
 
@@ -113,31 +118,38 @@ public final class Worker extends IdThread implements IWorker, INextStateFunctor
                 System.out.printf("[TLCWorker-%d] Read %d / %d states.\n", this.myGetId() ,i, stateCount);
             }
 
-            for (int k = 0; k < this.tool.getInvariants().length; k++){
-            if (!tool.isValid(this.tool.getInvariants()[k], s)){
-                synchronized (this.tlc)
-                {
-                    try{
-                        System.out.println("Invariant violated:" + this.tool.getInvNames()[k]);
-                        // this.tlc.doNextSetErr(s, TLCState.Empty, false, 
-                            // EC.TLC_INVARIANT_VIOLATED_BEHAVIOR, this.tool.getInvNames()[0]);
-                        int ec = EC.TLC_INVARIANT_VIOLATED_BEHAVIOR;
-                        if (this.tlc.setErrState(s, TLCState.Empty, false, ec))
-                        {
-                            // MP.printError(ec);
-                            System.out.printf("Invariant %s is violated.\n", this.tool.getInvNames()[k]);
-                            System.out.println(s.toString());
-                            this.tlc.theStateQueue.finishAll();
-                            this.tlc.notify();
-                        }
-
-                    } catch(Exception e){
-                        e.printStackTrace();
-                    }
-                    return i;
+            // for (int k = 0; k < this.tool.getInvariants().length; k++){
+                try{
+                    // System.out.println(s.toString());
+                    // this.doNextCheckInvariants(s, TLCState.Empty);
+                    this.doNextCheckInvariants(s,s);
+                } catch(Exception e){
+                    e.printStackTrace();
                 }
-            }
-        }
+                // if (!tool.isValid(this.tool.getInvariants()[k], s)){
+                //     synchronized (this.tlc)a
+                //     {
+                //         try{
+                //             System.out.println("Invariant violated:" + this.tool.getInvNames()[k]);
+                //             // this.tlc.doNextSetErr(s, TLCState.Empty, false, 
+                //                 // EC.TLC_INVARIANT_VIOLATED_BEHAVIOR, this.tool.getInvNames()[0]);
+                //             int ec = EC.TLC_INVARIANT_VIOLATED_BEHAVIOR;
+                //             if (this.tlc.setErrState(s, TLCState.Empty, false, ec))
+                //             {
+                //                 // MP.printError(ec);
+                //                 System.out.printf("Invariant %s is violated.\n", this.tool.getInvNames()[k]);
+                //                 System.out.println(s.toString());
+                //                 this.tlc.theStateQueue.finishAll();
+                //                 this.tlc.notify();
+                //             }
+
+                //         } catch(Exception e){
+                //             e.printStackTrace();
+                //         }
+                //         return i;
+                //     }
+                // }
+            // }
         }
         return i;
     }
@@ -150,10 +162,11 @@ public final class Worker extends IdThread implements IWorker, INextStateFunctor
 	public void run() {
 		TLCState curState = null;
 
-        // If we are runningin cacheState mode, then we try to load cached states and check invariants on those states.
-        // Otherwise, we run normal model checking and cache the generated states to a file.
+        // If we are running in cacheState mode, then we try to load cached
+        // states and check invariants on those states. Otherwise, we run normal
+        // model checking and cache the generated states to a file.
 
-        if(this.cacheStates){
+        if(this.cacheStates && TLCGlobals.cacheStatesMode.equals("load")){
             try{
                 long start = System.currentTimeMillis();
                 int numStates = loadAndCheckCachedStates();
@@ -170,8 +183,11 @@ public final class Worker extends IdThread implements IWorker, INextStateFunctor
             } catch(IOException e){
                 System.out.println("Failed to load '" + this.stateCacheFileName + "'', proceeding to full model checking run.");
             }
+            return;
+        }
 
-            // Initialize state cache output stream.
+        // Initialize state cache output stream.
+        if(this.cacheStates && TLCGlobals.cacheStatesMode.equals("cache")){
             try{
                 this.vos = new ValueOutputStream(this.stateCacheFileName);
             } catch(IOException e){}
@@ -464,6 +480,30 @@ public final class Worker extends IdThread implements IWorker, INextStateFunctor
 			
 			// Check if succState violates any invariant:
 			if (unseen) {
+                // Cache state if option is set.
+                if(this.cacheStates){
+                    //
+                    // Experimental state projection.
+                    //
+                    long fp = 0;
+                    Map<UniqueString, IValue> vals = curState.getVals();
+                    //for loop to iterate over keys of the Map.
+                    for (Map.Entry<UniqueString, IValue> entry : vals.entrySet()) {
+                        UniqueString key = entry.getKey();
+                        IValue val = entry.getValue();
+                        if(!ignoredVarsForCache.contains(key.toString())){
+                            fp = val.fingerPrint(fp);
+                        }
+                    }
+                    
+                    if(!localSeenSet.contains(fp)){
+                        // Write state to output file andu update count.
+                        curState.write(this.vos);
+                        cacheStateCount += 1;
+                        localSeenSet.add(fp);
+                    }
+                }
+
 				if (this.doNextCheckInvariants(curState, succState)) {
 					throw new InvariantViolatedException();
 				}
@@ -542,46 +582,9 @@ public final class Worker extends IdThread implements IWorker, INextStateFunctor
         int k = 0;
 		try
         {
-			// If the option is set, record this invariant, violation, 
+            // If the option is set, record this invariant, violation, 
 			// continue checking all other invariants, and don't halt the
 			// worker.
-
-            if(this.cacheStates){
-                // Write state to output file.
-                // curState.write(this.vos);
-                // cacheStateCount += 1;
-
-                // epochID,msgs,nodeLastWriteTS,nodeLastWriter,nodeWriteEpochID
-                HashSet<String> ignoredVars = new HashSet<>();
-
-                // Add ignored vars, if any.
-                // ignoredVars.add("epochID");
-                // ignoredVars.add("msgs");
-                // ignoredVars.add("nodeLastWriteTS");
-                // ignoredVars.add("nodeLastWriter");
-                // ignoredVars.add("nodeWriteEpochID");
-                
-                //
-                // Experimental state projection.
-                //
-                long fp = 0;
-                Map<UniqueString, IValue> vals = curState.getVals();
-                //for loop to iterate over keys of the Map.
-                for (Map.Entry<UniqueString, IValue> entry : vals.entrySet()) {
-                    UniqueString key = entry.getKey();
-                    IValue val = entry.getValue();
-                    if(!ignoredVars.contains(key.toString())){
-                        fp = val.fingerPrint(fp);
-                    }
-                }
-                
-                if(!localSeenSet.contains(fp)){
-                    curState.write(this.vos);
-                    cacheStateCount += 1;
-                    localSeenSet.add(fp);
-                }
-            }
-
 			if(TLCGlobals.checkAllInvariants){
                 long start = System.nanoTime();
 				for (k = 0; k < this.tool.getInvariants().length; k++){

@@ -686,6 +686,27 @@ public class TLC {
             {
                 index++;
                 cacheStates = true;
+                if (index < args.length)
+                {
+
+                    String cacheMode = args[index];
+                    // Can be "cache" or "load".
+                    TLCGlobals.cacheStatesMode = cacheMode;
+                    index++;
+                }
+            } 
+            else if (args[index].equals("-cacheStatesIgnoreVars"))
+            {
+                index++;
+
+                // Parse list of variables to ignore/project in cached states e.g., var1,var2,var3
+                if (index < args.length)
+                {
+
+                    String ignoreVars = args[index];
+                    TLCGlobals.cacheStatesIgnoreVars = ignoreVars.split(",");
+                    index++;
+                }
             } 
             else if (args[index].equals("-aril"))
             {

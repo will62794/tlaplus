@@ -39,6 +39,9 @@ public class TLCGlobals
 
     // Max exploration depth.
     public static long maxDepth = 0;
+
+    public static String[] cacheStatesIgnoreVars = new String[0];
+    public static String cacheStatesMode = "cache"; // "cache" or "load".
     
 	/**
 	 * Execute liveness checking when any of the disk graphs' size has increased

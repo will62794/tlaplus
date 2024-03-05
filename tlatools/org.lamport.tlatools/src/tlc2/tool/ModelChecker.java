@@ -76,6 +76,8 @@ public class ModelChecker extends AbstractChecker
     // Max depth to explore in state graph.
     int maxDepth = Integer.MAX_VALUE;
 
+    boolean cacheStates = false;
+
     /* Constructors  */
     public ModelChecker(ITool tool, String metadir, final IStateWriter stateWriter, boolean deadlock, String fromChkpt,
             final Future<FPSet> future, long startTime, int maxDepth, boolean cacheStates) throws EvalException, IOException, InterruptedException, ExecutionException {
@@ -90,6 +92,7 @@ public class ModelChecker extends AbstractChecker
         }
 
         this.maxDepth = maxDepth;
+        this.cacheStates = cacheStates;
     }
     
     public ModelChecker(ITool tool, String metadir, final IStateWriter stateWriter, boolean deadlock, String fromChkpt,
@@ -156,12 +159,15 @@ public class ModelChecker extends AbstractChecker
             {
                 report("doInit(false)");
                 MP.printMessage(EC.TLC_COMPUTING_INIT);
-				// SZ Feb 23, 2009: do not ignore cancel on creation of the init states
-				result = this.doInit(false);
-                if (result != EC.NO_ERROR)
-                {
-                    report("exiting, because init failed");
-                    return result;
+                // Don't compute initial states here if we are caching.
+                if(!this.cacheStates || !TLCGlobals.cacheStatesMode.equals("load")){
+                    // SZ Feb 23, 2009: do not ignore cancel on creation of the init states
+                    result = this.doInit(false);
+                    if (result != EC.NO_ERROR)
+                    {
+                        report("exiting, because init failed");
+                        return result;
+                    }
                 }
             } catch (Throwable e)
             {
