@@ -191,7 +191,7 @@ public final class Worker extends IdThread implements IWorker, INextStateFunctor
                 }
                 return;
             } catch(IOException e){
-                System.out.println("Failed to load '" + this.stateCacheFileName + "'', proceeding to full model checking run.");
+                System.out.println("Failed to load '" + this.stateCacheFileName + "', proceeding to full model checking run.");
             }
             return;
         }
@@ -490,6 +490,19 @@ public final class Worker extends IdThread implements IWorker, INextStateFunctor
 			
 			// Check if succState violates any invariant:
 			if (unseen) {
+				if (this.doNextCheckInvariants(curState, succState)) {
+					throw new InvariantViolatedException();
+				}
+			}
+			
+			// Check if the state violates any implied action. We need to do it
+			// even if succState is not new.
+			if (this.doNextCheckImplied(curState, succState)) {
+				throw new InvariantViolatedException();
+			}
+			
+			if (inModel && unseen) {
+
                 // Cache state if option is set.
                 if(this.cacheStates){
                     //
@@ -506,7 +519,6 @@ public final class Worker extends IdThread implements IWorker, INextStateFunctor
                         }
                     }
                     
-
                     if(!localSeenSet.contains(fp)){
                         // Write state to output file andu update count.
                         // String[] vars = succState.getVarsAsStrings();
@@ -522,18 +534,6 @@ public final class Worker extends IdThread implements IWorker, INextStateFunctor
                     }
                 }
 
-				if (this.doNextCheckInvariants(curState, succState)) {
-					throw new InvariantViolatedException();
-				}
-			}
-			
-			// Check if the state violates any implied action. We need to do it
-			// even if succState is not new.
-			if (this.doNextCheckImplied(curState, succState)) {
-				throw new InvariantViolatedException();
-			}
-			
-			if (inModel && unseen) {
 				// The state is inModel, unseen and neither invariants
 				// nor implied actions are violated. It is thus eligible
 				// for further processing by other workers.
