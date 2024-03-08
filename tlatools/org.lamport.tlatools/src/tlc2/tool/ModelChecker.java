@@ -864,7 +864,7 @@ public class ModelChecker extends AbstractChecker
 
         // Checkpoint the UniqueString table if we are caching.
         if(this.cacheStates && TLCGlobals.cacheStatesMode.equals("cache")){
-            String fname = "statecache-internTbl";
+            String fname = "statecache-" + this.tool.getRootName() + "-internTbl";
             UniqueString.internTbl.chkptNameUsesFileSep = false;
             UniqueString.internTbl.beginChkpt(fname);
             UniqueString.internTbl.commitChkpt(fname);

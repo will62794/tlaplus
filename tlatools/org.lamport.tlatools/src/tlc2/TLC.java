@@ -1111,7 +1111,7 @@ public class TLC {
             
             // Load the cached UniqueString intern table if we are loading cached states.
             if(this.cacheStates && TLCGlobals.cacheStatesMode.equals("load")){
-                String fname = "statecache-internTbl";
+                String fname = "statecache-" + new File(this.getSpecName()).getName() + "-internTbl";
                 UniqueString.internTbl.chkptNameUsesFileSep = false;
                 UniqueString.internTbl.recover(fname);
                 System.out.println("Recovered UniqueString table from " + fname);
