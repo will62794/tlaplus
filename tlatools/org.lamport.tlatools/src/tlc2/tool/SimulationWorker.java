@@ -25,20 +25,28 @@
  ******************************************************************************/
 package tlc2.tool;
 
+import java.io.File;
+import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.LongAdder;
 
+import tlc2.TLCGlobals;
 import tlc2.output.EC;
 import tlc2.tool.impl.Tool;
 import tlc2.tool.liveness.ILiveCheck;
 import tlc2.util.IdThread;
 import tlc2.util.RandomGenerator;
+import tlc2.value.IValue;
+import tlc2.value.ValueOutputStream;
 import util.FileUtil;
+import util.UniqueString;
 
 /**
  * A SimulationWorker repeatedly checks random traces of a spec.
@@ -108,6 +116,14 @@ public class SimulationWorker extends IdThread {
 	final long[][] actionStats;
 
     private boolean waypointMode = Boolean.getBoolean(Tool.class.getName() + ".waypointMode");
+
+    private boolean cacheStates = false;
+    private String stateCacheFileName;
+    private ValueOutputStream vos;
+    private int cacheStateCount = 0;
+
+    private HashSet<Long> localSeenSet;
+    HashSet<String> ignoredVarsForCache = new HashSet<>();
 
     private List<StateVec> waypointSets = new ArrayList<>();
     // The invariants that are yet to be violated starting from a given waypoint set.
@@ -201,12 +217,12 @@ public class SimulationWorker extends IdThread {
 			long seed, int maxTraceDepth, long maxTraceNum, boolean checkDeadlock, String traceFile,
 			ILiveCheck liveCheck) {
 		this(id, tool, resultQueue, seed, maxTraceDepth, maxTraceNum, checkDeadlock, traceFile, liveCheck,
-				new LongAdder(), new LongAdder(), new AtomicLong());
+				new LongAdder(), new LongAdder(), new AtomicLong(), false);
 	}
 
 	public SimulationWorker(int id, ITool tool, BlockingQueue<SimulationWorkerResult> resultQueue,
 			long seed, int maxTraceDepth, long maxTraceNum, boolean checkDeadlock, String traceFile,
-			ILiveCheck liveCheck, LongAdder numOfGenStates, LongAdder numOfGenTraces, AtomicLong m2AndMean) {
+			ILiveCheck liveCheck, LongAdder numOfGenStates, LongAdder numOfGenTraces, AtomicLong m2AndMean, boolean cacheStates) {
 		super(id);
 		this.localRng = new RandomGenerator(seed);
 		this.tool = tool;
@@ -220,6 +236,18 @@ public class SimulationWorker extends IdThread {
 		this.numOfGenTraces = numOfGenTraces;
 		this.welfordM2AndMean = m2AndMean;
 		this.stateTrace = new StateVec(maxTraceDepth);
+
+        this.cacheStates = cacheStates;
+
+        if(this.cacheStates){
+            // String fname = "statecache-" + new File(this.getSpecName()).getName() + "-internTbl";
+            this.stateCacheFileName = "statecache-" + tool.getRootName() + "-" + myGetId();
+            localSeenSet = new HashSet<Long>();
+
+            for(int i=0;i<TLCGlobals.cacheStatesIgnoreVars.length;i++){
+                ignoredVarsForCache.add(TLCGlobals.cacheStatesIgnoreVars[i]);
+            }
+        }
 		
 		if (Simulator.actionStats) {
 			final Action[] actions = this.tool.getActions();
@@ -242,6 +270,40 @@ public class SimulationWorker extends IdThread {
 	 * implement this manually but it's simpler to use the built-in mechanism.
 	 */
 	public final void run() {
+        // If we are running in cacheState mode, then we try to load cached
+        // states and check invariants on those states. Otherwise, we run normal
+        // model checking and cache the generated states to a file.
+
+        // if(this.cacheStates && TLCGlobals.cacheStatesMode.equals("load")){
+        //     try{
+        //         long start = System.currentTimeMillis();
+        //         int numStates = loadAndCheckCachedStates();
+        //         long end = System.currentTimeMillis();
+        //         System.out.printf("Loaded %d serialized states and checked %d invs in %dms\n", numStates, this.tool.getInvariants().length , end-start);
+
+        //         synchronized (this.tlc) {
+        //             if(!this.tlc.setDone()) {
+        //                 // doPostConditionCheck();
+        //             }
+        //             this.tlc.notify();
+        //         }
+        //         return;
+        //     } catch(IOException e){
+        //         System.out.println("Failed to load '" + this.stateCacheFileName + "', proceeding to full model checking run.");
+        //     }
+        //     return;
+        // }
+
+        // Initialize state cache output stream.
+        if(this.cacheStates && TLCGlobals.cacheStatesMode.equals("cache")){
+            try{
+                this.vos = new ValueOutputStream(this.stateCacheFileName);
+                System.out.printf("Opened state cache file for writing: %s.\n", this.stateCacheFileName);
+            } catch(IOException e){
+                System.out.println("Failed to open state cache file for writing.");
+            }
+        }
+
 		while(true) {
 			try {
 
@@ -268,6 +330,14 @@ public class SimulationWorker extends IdThread {
 
 				// Abide by the maximum trace generation count.
 				if (traceCnt >= maxTraceNum) {
+                    if(this.cacheStates){
+                        System.out.printf("Saving state cache and writing state count of %d states.\n", this.cacheStateCount);
+                        this.vos.close();
+                        ValueOutputStream countVos = new ValueOutputStream(this.stateCacheFileName + "-count");
+                        countVos.writeInt(this.cacheStateCount);
+                        countVos.close();
+                    }
+
 					resultQueue.put(SimulationWorkerResult.OK(this.myGetId()));
 					return;
 				}
@@ -475,6 +545,34 @@ public class SimulationWorker extends IdThread {
 				}
 
 			}
+
+            // Cache current state if option is set.
+            if(this.cacheStates){
+                //
+                // Experimental state projection.
+                //
+                long fp = 0;
+                Map<UniqueString, IValue> vals = curState.getVals();
+                //for loop to iterate over keys of the Map.
+                for (Map.Entry<UniqueString, IValue> entry : vals.entrySet()) {
+                    UniqueString key = entry.getKey();
+                    IValue val = entry.getValue();
+                    if(!ignoredVarsForCache.contains(key.toString())){
+                        fp = val.fingerPrint(fp);
+                    }
+                }
+                
+                if(!localSeenSet.contains(fp)){
+                    // Set these values to allow for proper serialization.
+                    curState.uid = 0;
+                    curState.workerId = (short) myGetId();
+
+                    // Write state to output file and update count.
+                    curState.write(this.vos);
+                    cacheStateCount += 1;
+                    localSeenSet.add(fp);
+                }
+            }
 
 			// At this point all generated successor states have been checked for
 			// their respective validity (isGood/isValid/impliedActions/...).

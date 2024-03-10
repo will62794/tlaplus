@@ -1138,7 +1138,7 @@ public class TLC {
 				
 				tool = new FastTool(mainFile, configFile, resolver, Mode.Simulation);
 				Simulator simulator = new Simulator(tool, metadir, traceFile, deadlock, traceDepth, traceNum, rng, seed,
-						resolver, TLCGlobals.getNumWorkers());
+						resolver, TLCGlobals.getNumWorkers(), this.cacheStates);
                 TLCGlobals.simulator = simulator;
                 result = simulator.simulate();
 			} else { // RunMode.MODEL_CHECK
@@ -1197,6 +1197,27 @@ public class TLC {
             }
         } finally 
         {
+
+            // Checkpoint the UniqueString table if we are caching.
+            try{
+                if(this.cacheStates && TLCGlobals.cacheStatesMode.equals("cache") && RunMode.SIMULATE.equals(runMode)){
+                    String fname = "statecache-" + this.tool.getRootName() + "-internTbl";
+                    System.out.println("Saving UniqueString table to " + fname);
+                    UniqueString.internTbl.chkptNameUsesFileSep = false;
+                    // Map<String, UniqueString> tbl = UniqueString.internTbl.toMap();
+                    // print each element of tbl map.
+                    // for (Map.Entry<String, UniqueString> entry : tbl.entrySet()) {
+                        // System.out.println(entry.getKey() + " -> " + entry.getValue());
+                    // }
+
+                    UniqueString.internTbl.beginChkpt(fname);
+                    UniqueString.internTbl.commitChkpt(fname);
+                }
+            } catch(IOException e){
+                MP.printError(EC.GENERAL, e);
+            }
+            
+
         	if (tlc2.module.TLC.OUTPUT != null) {
         		try {
         			tlc2.module.TLC.OUTPUT.flush();

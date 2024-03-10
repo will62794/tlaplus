@@ -58,7 +58,7 @@ public class Simulator {
 			long traceNum, RandomGenerator rng, long seed, FilenameToStream resolver,
 			int numWorkers) throws IOException {
 		this(new FastTool(extracted(specFile), configFile, resolver, Tool.Mode.Simulation), "", traceFile, deadlock,
-				traceDepth, traceNum, rng, seed, resolver, numWorkers);
+				traceDepth, traceNum, rng, seed, resolver, numWorkers, false);
 	}
 
 	private static String extracted(String specFile) {
@@ -68,7 +68,7 @@ public class Simulator {
 
 	public Simulator(ITool tool, String metadir, String traceFile, boolean deadlock, int traceDepth,
 				long traceNum, RandomGenerator rng, long seed, FilenameToStream resolver,
-				int numWorkers) throws IOException {
+				int numWorkers, boolean cacheStates) throws IOException {
 		this.tool = tool;
 
 		this.checkDeadlock = deadlock && tool.getModelConfig().getCheckDeadlock();
@@ -87,6 +87,9 @@ public class Simulator {
 		this.rng = rng;
 		this.seed = seed;
 		this.aril = 0;
+
+        this.cacheStates = cacheStates;
+
 		// Initialization for liveness checking
 		if (this.checkLiveness) {
 			if (EXPERIMENTAL_LIVENESS_SIMULATION) {
@@ -104,7 +107,7 @@ public class Simulator {
 		for (int i = 0; i < this.numWorkers; i++) {
 			this.workers.add(new SimulationWorker(i, this.tool, this.workerResultQueue, this.rng.nextLong(),
 					this.traceDepth, this.traceNum, this.checkDeadlock, this.traceFile, this.liveCheck,
-					this.numOfGenStates, this.numOfGenTraces, this.welfordM2AndMean));
+					this.numOfGenStates, this.numOfGenTraces, this.welfordM2AndMean, this.cacheStates));
 		}
 		
 		if (TLCGlobals.isCoverageEnabled()) {
@@ -135,6 +138,8 @@ public class Simulator {
 
 	// private Action[] actionTrace; // SZ: never read locally
 	private final String traceFile;
+
+    private boolean cacheStates = false;
 
 	// The maximum length of a simulated trace.
 	private final int traceDepth;
