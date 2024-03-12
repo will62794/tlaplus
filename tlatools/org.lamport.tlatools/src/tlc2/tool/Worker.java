@@ -90,8 +90,9 @@ public final class Worker extends IdThread implements IWorker, INextStateFunctor
         this(id, tlc, metadir, specFile);
 
         this.cacheStates = cacheStates;
-        if(this.cacheStates){
-            this.stateCacheFileName = "statecache-" + specFile + "-" + myGetId();
+        if(this.cacheStates){ 
+            this.stateCacheFileName = TLCGlobals.getStateCacheBaseFilename(specFile) + "-" + myGetId();
+            // this.stateCacheFileName = "statecache-" + specFile + "-" + myGetId();
             localSeenSet = new HashSet<Long>();
 
             for(int i=0;i<TLCGlobals.cacheStatesIgnoreVars.length;i++){

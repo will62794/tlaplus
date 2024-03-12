@@ -241,7 +241,8 @@ public class SimulationWorker extends IdThread {
 
         if(this.cacheStates){
             // String fname = "statecache-" + new File(this.getSpecName()).getName() + "-internTbl";
-            this.stateCacheFileName = "statecache-" + tool.getRootName() + "-" + myGetId();
+            this.stateCacheFileName = TLCGlobals.getStateCacheBaseFilename(tool.getRootName()) + "-" + myGetId();
+            // this.stateCacheFileName = "statecache-" + tool.getRootName() + "-" + myGetId();
             localSeenSet = new HashSet<Long>();
 
             for(int i=0;i<TLCGlobals.cacheStatesIgnoreVars.length;i++){

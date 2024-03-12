@@ -114,6 +114,15 @@ public class TLCGlobals
     public static final boolean isCoverageEnabled() {
     	return coverageInterval >= 0;
     }
+
+    public static String getStateCacheBaseFilename(String specFile){
+        // Include the set of ignored vars in the cached filename.
+        String fname = "statecache-" + specFile + "-";
+        String[] ignoredVars = TLCGlobals.cacheStatesIgnoreVars;
+        Arrays.sort(ignoredVars);
+        fname += String.join(",", ignoredVars);
+        return fname;
+    }
     
     // Depth for depth-first iterative deepening
     public static int DFIDMax = -1;
