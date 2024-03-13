@@ -3,6 +3,7 @@
 package tlc2;
 
 import java.net.URL;
+import java.util.Arrays;
 import java.util.Enumeration;
 import java.util.jar.Attributes;
 import java.util.jar.Manifest;
@@ -117,7 +118,7 @@ public class TLCGlobals
 
     public static String getStateCacheBaseFilename(String specFile){
         // Include the set of ignored vars in the cached filename.
-        String fname = "statecache-" + specFile + "-";
+        String fname = "statecache/" + specFile + "-";
         String[] ignoredVars = TLCGlobals.cacheStatesIgnoreVars;
         Arrays.sort(ignoredVars);
         fname += String.join(",", ignoredVars);

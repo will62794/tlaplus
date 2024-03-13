@@ -28,6 +28,8 @@ package tlc2.tool;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.nio.file.Paths;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -298,6 +300,8 @@ public class SimulationWorker extends IdThread {
         // Initialize state cache output stream.
         if(this.cacheStates && TLCGlobals.cacheStatesMode.equals("cache")){
             try{
+                // Create directory if it does not exist.
+                Files.createDirectories(Paths.get("statecache"));
                 this.vos = new ValueOutputStream(this.stateCacheFileName);
                 System.out.printf("Opened state cache file for writing: %s.\n", this.stateCacheFileName);
             } catch(IOException e){

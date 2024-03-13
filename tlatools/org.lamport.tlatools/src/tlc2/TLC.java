@@ -1111,7 +1111,8 @@ public class TLC {
             
             // Load the cached UniqueString intern table if we are loading cached states.
             if(this.cacheStates && TLCGlobals.cacheStatesMode.equals("load")){
-                String fname = "statecache-" + new File(this.getSpecName()).getName() + "-internTbl";
+                // String fname = "statecache-" + new File(this.getSpecName()).getName() + "-internTbl";
+                String fname = TLCGlobals.getStateCacheBaseFilename(new File(this.getSpecName()).getName()) + "-internTbl";
                 UniqueString.internTbl.chkptNameUsesFileSep = false;
                 UniqueString.internTbl.recover(fname);
                 System.out.println("Recovered UniqueString table from " + fname);
@@ -1201,7 +1202,8 @@ public class TLC {
             // Checkpoint the UniqueString table if we are caching.
             try{
                 if(this.cacheStates && TLCGlobals.cacheStatesMode.equals("cache") && RunMode.SIMULATE.equals(runMode)){
-                    String fname = "statecache-" + this.tool.getRootName() + "-internTbl";
+                    // String fname = "statecache-" + this.tool.getRootName() + "-internTbl";
+                    String fname = TLCGlobals.getStateCacheBaseFilename(this.tool.getRootName()) + "-internTbl";
                     System.out.println("Saving UniqueString table to " + fname);
                     UniqueString.internTbl.chkptNameUsesFileSep = false;
                     // Map<String, UniqueString> tbl = UniqueString.internTbl.toMap();
