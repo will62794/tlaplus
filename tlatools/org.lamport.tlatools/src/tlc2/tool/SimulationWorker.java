@@ -41,6 +41,7 @@ import java.util.concurrent.atomic.LongAdder;
 
 import tlc2.TLCGlobals;
 import tlc2.output.EC;
+import tlc2.output.MP;
 import tlc2.tool.impl.Tool;
 import tlc2.tool.liveness.ILiveCheck;
 import tlc2.util.IdThread;
@@ -130,6 +131,8 @@ public class SimulationWorker extends IdThread {
     private List<StateVec> waypointSets = new ArrayList<>();
     // The invariants that are yet to be violated starting from a given waypoint set.
     private List<Action> waypointInvs = new ArrayList<>();
+
+    Simulator simulator;
 	
 	/**
 	 * Encapsulates information about an error produced by a simulation worker.
@@ -215,17 +218,18 @@ public class SimulationWorker extends IdThread {
 
 	}
 	
-	public SimulationWorker(int id, ITool tool, BlockingQueue<SimulationWorkerResult> resultQueue,
+	public SimulationWorker(int id, Simulator simulator, ITool tool, BlockingQueue<SimulationWorkerResult> resultQueue,
 			long seed, int maxTraceDepth, long maxTraceNum, boolean checkDeadlock, String traceFile,
 			ILiveCheck liveCheck) {
-		this(id, tool, resultQueue, seed, maxTraceDepth, maxTraceNum, checkDeadlock, traceFile, liveCheck,
+		this(id, simulator, tool, resultQueue, seed, maxTraceDepth, maxTraceNum, checkDeadlock, traceFile, liveCheck,
 				new LongAdder(), new LongAdder(), new AtomicLong(), false);
 	}
 
-	public SimulationWorker(int id, ITool tool, BlockingQueue<SimulationWorkerResult> resultQueue,
+	public SimulationWorker(int id, Simulator simulator, ITool tool, BlockingQueue<SimulationWorkerResult> resultQueue,
 			long seed, int maxTraceDepth, long maxTraceNum, boolean checkDeadlock, String traceFile,
 			ILiveCheck liveCheck, LongAdder numOfGenStates, LongAdder numOfGenTraces, AtomicLong m2AndMean, boolean cacheStates) {
 		super(id);
+        this.simulator = simulator;
 		this.localRng = new RandomGenerator(seed);
 		this.tool = tool;
 		this.maxTraceDepth = maxTraceDepth;
@@ -480,6 +484,17 @@ public class SimulationWorker extends IdThread {
 					for (idx = 0; idx < this.tool.getInvariants().length; idx++) {
                         boolean skipInv = false;
 
+                        String invName = "";
+                        if(TLCGlobals.checkAllInvariants){
+                            // If the invariant has already been violated, there is no need
+                            // to check it again, since we already know it is not a true invariant.
+                            invName = tool.getInvNames()[idx];
+                            if(this.simulator.violatedInvs.contains(invName)){
+                                // Move on to the next invariant.
+                                continue;
+                            }
+                        }
+
                         // Skip checking of this invariant if it appears in a previous waypoint.
                         if(this.waypointMode){
                             for(int j=0;j<this.waypointInvs.size();j++){
@@ -492,6 +507,20 @@ public class SimulationWorker extends IdThread {
                         }
 
 						if (!skipInv && !tool.isValid(this.tool.getInvariants()[idx], state)) {
+                            if(TLCGlobals.checkAllInvariants){
+                                synchronized (this.simulator)
+                                {
+                                    // If this invariant has not already been violated
+                                    // previously, record it and print out the record
+                                    // of the violation.
+                                    if(!this.simulator.violatedInvs.contains(invName)){
+                                        this.simulator.violatedInvs.add(invName);
+                                        MP.printError(EC.TLC_INVARIANT_VIOLATED_BEHAVIOR, invName);
+                                        continue;
+                                    }
+                                }
+                            }
+
 							// We get here because of an invariant violation.
 							state.setActionId(index);
 

@@ -105,7 +105,7 @@ public class Simulator {
 		this.numWorkers = numWorkers;
 		this.workers = new ArrayList<>(numWorkers);
 		for (int i = 0; i < this.numWorkers; i++) {
-			this.workers.add(new SimulationWorker(i, this.tool, this.workerResultQueue, this.rng.nextLong(),
+			this.workers.add(new SimulationWorker(i, this, this.tool, this.workerResultQueue, this.rng.nextLong(),
 					this.traceDepth, this.traceNum, this.checkDeadlock, this.traceFile, this.liveCheck,
 					this.numOfGenStates, this.numOfGenTraces, this.welfordM2AndMean, this.cacheStates));
 		}
@@ -163,6 +163,9 @@ public class Simulator {
 	private final long startTime = System.currentTimeMillis();
 	
 	private final List<SimulationWorker> workers;
+
+	// The set of invariants, identified by name, that have been violated so far in this run.
+	public Set violatedInvs = new HashSet<String>();
 		 
 	 /**
 	 * Returns whether a given error code is considered "continuable". That is, if
@@ -272,8 +275,14 @@ public class Simulator {
 					for (int j = 0; j < this.invariants.length; j++) {
 						if (!this.tool.isValid(this.invariants[j], curState)) {
 							// We get here because of invariant violation.
-							return MP.printError(EC.TLC_INVARIANT_VIOLATED_INITIAL,
-									new String[] { this.tool.getInvNames()[j], curState.toString() });
+                            if(TLCGlobals.continuation || TLCGlobals.checkAllInvariants){
+                                // Don't return if we are continuing.
+                                MP.printError(EC.TLC_INVARIANT_VIOLATED_INITIAL,
+									new String[] { this.tool.getInvNames()[j], curState.toString()});
+                            } else{
+                                return MP.printError(EC.TLC_INVARIANT_VIOLATED_INITIAL,
+                                new String[] { this.tool.getInvNames()[j], curState.toString() });
+                            }
 						}
 					}
 				} else {
