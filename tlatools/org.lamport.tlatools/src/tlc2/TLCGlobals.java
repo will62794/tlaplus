@@ -3,8 +3,10 @@
 package tlc2;
 
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Enumeration;
+import java.util.List;
 import java.util.jar.Attributes;
 import java.util.jar.Manifest;
 
@@ -41,7 +43,8 @@ public class TLCGlobals
     // Max exploration depth.
     public static long maxDepth = 0;
 
-    public static String[] cacheStatesIgnoreVars = new String[0];
+    // public static String[] cacheStatesIgnoreVars = new String[0];
+    public static List<List<String>> cacheStatesIgnoreVarsSets = new ArrayList<>();
     public static String cacheStatesMode = "cache"; // "cache" or "load".
     
 	/**
@@ -116,10 +119,12 @@ public class TLCGlobals
     	return coverageInterval >= 0;
     }
 
-    public static String getStateCacheBaseFilename(String specFile){
+    public static String getStateCacheBaseFilename(String specFile, List<String> ignoreVars){
         // Include the set of ignored vars in the cached filename.
         String fname = "statecache/" + specFile + "-";
-        String[] ignoredVars = TLCGlobals.cacheStatesIgnoreVars;
+        // String[] ignoredVars = TLCGlobals.cacheStatesIgnoreVars;
+        // Convert ArrayList to String[]
+        String[] ignoredVars = ignoreVars.toArray(new String[ignoreVars.size()]);
         Arrays.sort(ignoredVars);
         fname += String.join(",", ignoredVars);
         return fname;

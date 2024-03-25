@@ -9,8 +9,10 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 
 import tla2sany.semantic.ExprNode;
@@ -59,10 +61,13 @@ public final class Worker extends IdThread implements IWorker, INextStateFunctor
 	private volatile int maxLevel = 0;
     private long invCheckDuration = 0;
 
+    String specFile;
     private boolean cacheStates = false;
     private String stateCacheFileName;
-    private ValueOutputStream vos;
-    private int cacheStateCount = 0;
+    // private ValueOutputStream vos;
+    private List<ValueOutputStream> vos;
+    private List<Integer> cacheStateCounts = new ArrayList<Integer>();
+        
 
     private HashSet<Long> localSeenSet;
     HashSet<String> ignoredVarsForCache = new HashSet<>();
@@ -84,33 +89,39 @@ public final class Worker extends IdThread implements IWorker, INextStateFunctor
 
 		this.filename = metadir + FileUtil.separator + specFile + "-" + myGetId();
 		this.raf = new BufferedRandomAccessFile(filename + TLCTrace.EXT, "rw");
+        this.specFile = specFile;
+        this.vos = new ArrayList<>();
 	}
+
+    private String stateCacheFileName(List<String> ignoreVars){
+        return TLCGlobals.getStateCacheBaseFilename(this.specFile, ignoreVars) + "-" + myGetId();
+    }
 
     public Worker(int id, AbstractChecker tlc, String metadir, String specFile, boolean cacheStates) throws IOException {
         this(id, tlc, metadir, specFile);
 
         this.cacheStates = cacheStates;
         if(this.cacheStates){ 
-            this.stateCacheFileName = TLCGlobals.getStateCacheBaseFilename(specFile) + "-" + myGetId();
+            // this.stateCacheFileName = TLCGlobals.getStateCacheBaseFilename(specFile) + "-" + myGetId();
             // this.stateCacheFileName = "statecache-" + specFile + "-" + myGetId();
             localSeenSet = new HashSet<Long>();
 
-            for(int i=0;i<TLCGlobals.cacheStatesIgnoreVars.length;i++){
-                ignoredVarsForCache.add(TLCGlobals.cacheStatesIgnoreVars[i]);
-            }
+            // for(int i=0;i<TLCGlobals.cacheStatesIgnoreVars.length;i++){
+                // ignoredVarsForCache.add(TLCGlobals.cacheStatesIgnoreVars[i]);
+            // }
         }
     }
 
     public int loadAndCheckCachedStates() throws IOException {
-        System.out.println("Attempting to load cached states from '" + this.stateCacheFileName + "'");
+        System.out.println("Attempting to load cached states from '" + stateCacheFileName(TLCGlobals.cacheStatesIgnoreVarsSets.get(0)) + "'");
 
         // Load the number of states.
-        ValueInputStream countVis = new ValueInputStream(this.stateCacheFileName + "-count");
+        ValueInputStream countVis = new ValueInputStream(stateCacheFileName(TLCGlobals.cacheStatesIgnoreVarsSets.get(0)) + "-count");
         int stateCount = countVis.readInt();
         countVis.close();
         System.out.printf("Read count of %d cached states.\n", stateCount);
 
-        ValueInputStream vis = new ValueInputStream(this.stateCacheFileName);
+        ValueInputStream vis = new ValueInputStream(stateCacheFileName(TLCGlobals.cacheStatesIgnoreVarsSets.get(0)));
         int i;
         for (i = 0; i < stateCount; i++) {
             TLCState s = TLCState.Empty.createEmpty();
@@ -199,9 +210,15 @@ public final class Worker extends IdThread implements IWorker, INextStateFunctor
 
         // Initialize state cache output stream.
         if(this.cacheStates && TLCGlobals.cacheStatesMode.equals("cache")){
-            try{
-                this.vos = new ValueOutputStream(this.stateCacheFileName);
-            } catch(IOException e){}
+            TLCGlobals.cacheStatesIgnoreVarsSets.forEach(ignoreVars -> {
+                try{
+                    this.vos.add(new ValueOutputStream(stateCacheFileName(ignoreVars)));
+                } catch(IOException e){
+                    e.printStackTrace();
+                }
+                // Add state count object for each one too.
+                cacheStateCounts.add(0);
+            });
         }
 
 		try {
@@ -209,10 +226,20 @@ public final class Worker extends IdThread implements IWorker, INextStateFunctor
 				curState = this.squeue.sDequeue();
 				if (curState == null) {
                     if(this.cacheStates){
-                        this.vos.close();
-                        ValueOutputStream countVos = new ValueOutputStream(this.stateCacheFileName + "-count");
-                        countVos.writeInt(cacheStateCount);
-                        countVos.close();
+                        this.vos.forEach(vos -> {
+                            try{
+                                vos.close();
+                            } catch(IOException e){
+                                e.printStackTrace();
+                            }
+                        });
+                        // this.vos.close();
+                        // Write each state cache count.
+                        for(int i=0;i<TLCGlobals.cacheStatesIgnoreVarsSets.size();i++){
+                            ValueOutputStream countVos = new ValueOutputStream(stateCacheFileName(TLCGlobals.cacheStatesIgnoreVarsSets.get(i)) + "-count");
+                            countVos.writeInt(cacheStateCounts.get(i));
+                            countVos.close();
+                        }
                     }
 					synchronized (this.tlc) {
                         System.out.printf("Total time spent checking invariant: %dms (%s)\n", invCheckDuration / (1000*1000), this.getName());
@@ -506,32 +533,41 @@ public final class Worker extends IdThread implements IWorker, INextStateFunctor
 
                 // Cache state if option is set.
                 if(this.cacheStates){
-                    //
-                    // Experimental state projection.
-                    //
-                    long fp = 0;
-                    Map<UniqueString, IValue> vals = succState.getVals();
-                    //for loop to iterate over keys of the Map.
-                    for (Map.Entry<UniqueString, IValue> entry : vals.entrySet()) {
-                        UniqueString key = entry.getKey();
-                        IValue val = entry.getValue();
-                        if(!ignoredVarsForCache.contains(key.toString())){
-                            fp = val.fingerPrint(fp);
-                        }
-                    }
-                    
-                    if(!localSeenSet.contains(fp)){
-                        // Write state to output file andu update count.
-                        // String[] vars = succState.getVarsAsStrings();
-                        // Print each var:
-                        // for(int j=0;j<vars.length;j++){
-                            // System.out.printf("- %s\n", vars[j]);
-                        // } 
-                        // System.out.println("===");
 
-                        succState.write(this.vos);
-                        cacheStateCount += 1;
-                        localSeenSet.add(fp);
+                    int ind = 0;
+                    // Check state for each projection we are computing.
+                    for(List<String> vars : TLCGlobals.cacheStatesIgnoreVarsSets){
+                        //
+                        // Experimental state projection.
+                        //
+                        long fp = 0;
+                        Map<UniqueString, IValue> vals = succState.getVals();
+                        //for loop to iterate over keys of the Map.
+                        for (Map.Entry<UniqueString, IValue> entry : vals.entrySet()) {
+                            UniqueString key = entry.getKey();
+                            IValue val = entry.getValue();
+                            // if(!ignoredVarsForCache.contains(key.toString())){
+                            //     fp = val.fingerPrint(fp);
+                            // }
+                            if(!vars.contains(key.toString())){
+                                fp = val.fingerPrint(fp);
+                            }
+                        }
+                        
+                        if(!localSeenSet.contains(fp)){
+                            // Write state to output file andu update count.
+                            // String[] vars = succState.getVarsAsStrings();
+                            // Print each var:
+                            // for(int j=0;j<vars.length;j++){
+                                // System.out.printf("- %s\n", vars[j]);
+                            // } 
+                            // System.out.println("===");
+
+                            succState.write(this.vos.get(ind));
+                            cacheStateCounts.set(ind, cacheStateCounts.get(ind) + 1);
+                            localSeenSet.add(fp);
+                        }
+                        ind += 1;
                     }
                 }
 

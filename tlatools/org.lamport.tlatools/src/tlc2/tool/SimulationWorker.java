@@ -121,9 +121,12 @@ public class SimulationWorker extends IdThread {
     private boolean waypointMode = Boolean.getBoolean(Tool.class.getName() + ".waypointMode");
 
     private boolean cacheStates = false;
-    private String stateCacheFileName;
-    private ValueOutputStream vos;
-    private int cacheStateCount = 0;
+    // private String stateCacheFileName;
+    // private ValueOutputStream vos;
+    // private int cacheStateCount = 0;
+
+    private List<ValueOutputStream> vos;
+    private List<Integer> cacheStateCounts = new ArrayList<Integer>();
 
     private HashSet<Long> localSeenSet;
     HashSet<String> ignoredVarsForCache = new HashSet<>();
@@ -131,6 +134,8 @@ public class SimulationWorker extends IdThread {
     private List<StateVec> waypointSets = new ArrayList<>();
     // The invariants that are yet to be violated starting from a given waypoint set.
     private List<Action> waypointInvs = new ArrayList<>();
+
+    private String specFile;
 
     Simulator simulator;
 	
@@ -217,6 +222,11 @@ public class SimulationWorker extends IdThread {
 		private Optional<SimulationWorkerError> error = Optional.empty();
 
 	}
+
+    private String stateCacheFileName(List<String> ignoreVars){
+        return TLCGlobals.getStateCacheBaseFilename(this.specFile, ignoreVars) + "-" + myGetId();
+    }
+
 	
 	public SimulationWorker(int id, Simulator simulator, ITool tool, BlockingQueue<SimulationWorkerResult> resultQueue,
 			long seed, int maxTraceDepth, long maxTraceNum, boolean checkDeadlock, String traceFile,
@@ -244,16 +254,19 @@ public class SimulationWorker extends IdThread {
 		this.stateTrace = new StateVec(maxTraceDepth);
 
         this.cacheStates = cacheStates;
+        this.specFile = tool.getRootName();
 
         if(this.cacheStates){
             // String fname = "statecache-" + new File(this.getSpecName()).getName() + "-internTbl";
-            this.stateCacheFileName = TLCGlobals.getStateCacheBaseFilename(tool.getRootName()) + "-" + myGetId();
+            // this.stateCacheFileName = TLCGlobals.getStateCacheBaseFilename(tool.getRootName(), TLCGlobals.cacheStatesIgnoreVarsSets.get(0)) + "-" + myGetId();
             // this.stateCacheFileName = "statecache-" + tool.getRootName() + "-" + myGetId();
             localSeenSet = new HashSet<Long>();
+            this.vos = new ArrayList<>();
 
-            for(int i=0;i<TLCGlobals.cacheStatesIgnoreVars.length;i++){
-                ignoredVarsForCache.add(TLCGlobals.cacheStatesIgnoreVars[i]);
-            }
+            // for(int i=0;i<TLCGlobals.cacheStatesIgnoreVars.length;i++){
+            // for(int i=0;i<TLCGlobals.cacheStatesIgnoreVarsSets.get(0).size();i++){
+                // ignoredVarsForCache.add(TLCGlobals.cacheStatesIgnoreVarsSets.get(0).get(i));
+            // }
         }
 		
 		if (Simulator.actionStats) {
@@ -303,14 +316,19 @@ public class SimulationWorker extends IdThread {
 
         // Initialize state cache output stream.
         if(this.cacheStates && TLCGlobals.cacheStatesMode.equals("cache")){
-            try{
-                // Create directory if it does not exist.
-                Files.createDirectories(Paths.get("statecache"));
-                this.vos = new ValueOutputStream(this.stateCacheFileName);
-                System.out.printf("Opened state cache file for writing: %s.\n", this.stateCacheFileName);
-            } catch(IOException e){
-                System.out.println("Failed to open state cache file for writing.");
-            }
+
+            // Files.createDirectories(Paths.get("statecache"));
+            TLCGlobals.cacheStatesIgnoreVarsSets.forEach(ignoreVars -> {
+                try{
+                    this.vos.add(new ValueOutputStream(stateCacheFileName(ignoreVars)));
+                } catch(IOException e){
+                    e.printStackTrace();
+                }
+                // Add state count object for each one too.
+                cacheStateCounts.add(0);
+            });
+
+
         }
 
 		while(true) {
@@ -340,11 +358,21 @@ public class SimulationWorker extends IdThread {
 				// Abide by the maximum trace generation count.
 				if (traceCnt >= maxTraceNum) {
                     if(this.cacheStates){
-                        System.out.printf("Saving state cache and writing state count of %d states.\n", this.cacheStateCount);
-                        this.vos.close();
-                        ValueOutputStream countVos = new ValueOutputStream(this.stateCacheFileName + "-count");
-                        countVos.writeInt(this.cacheStateCount);
-                        countVos.close();
+
+                        this.vos.forEach(vos -> {
+                            try{
+                                vos.close();
+                            } catch(IOException e){
+                                e.printStackTrace();
+                            }
+                        });
+                        // Write each state cache count.
+                        for(int i=0;i<TLCGlobals.cacheStatesIgnoreVarsSets.size();i++){
+                            System.out.printf("Saving state cache and writing state count of %d states.\n", this.cacheStateCounts.get(i));
+                            ValueOutputStream countVos = new ValueOutputStream(stateCacheFileName(TLCGlobals.cacheStatesIgnoreVarsSets.get(i)) + "-count");
+                            countVos.writeInt(cacheStateCounts.get(i));
+                            countVos.close();
+                        }
                     }
 
 					resultQueue.put(SimulationWorkerResult.OK(this.myGetId()));
@@ -585,26 +613,33 @@ public class SimulationWorker extends IdThread {
                 //
                 // Experimental state projection.
                 //
-                long fp = 0;
-                Map<UniqueString, IValue> vals = curState.getVals();
-                //for loop to iterate over keys of the Map.
-                for (Map.Entry<UniqueString, IValue> entry : vals.entrySet()) {
-                    UniqueString key = entry.getKey();
-                    IValue val = entry.getValue();
-                    if(!ignoredVarsForCache.contains(key.toString())){
-                        fp = val.fingerPrint(fp);
-                    }
-                }
-                
-                if(!localSeenSet.contains(fp)){
-                    // Set these values to allow for proper serialization.
-                    curState.uid = 0;
-                    curState.workerId = (short) myGetId();
 
-                    // Write state to output file and update count.
-                    curState.write(this.vos);
-                    cacheStateCount += 1;
-                    localSeenSet.add(fp);
+                int ind = 0;
+                // Check state for each projection we are computing.
+                for(List<String> vars : TLCGlobals.cacheStatesIgnoreVarsSets){
+
+                    long fp = 0;
+                    Map<UniqueString, IValue> vals = curState.getVals();
+                    //for loop to iterate over keys of the Map.
+                    for (Map.Entry<UniqueString, IValue> entry : vals.entrySet()) {
+                        UniqueString key = entry.getKey();
+                        IValue val = entry.getValue();
+                        if(!ignoredVarsForCache.contains(key.toString())){
+                            fp = val.fingerPrint(fp);
+                        }
+                    }
+                    
+                    if(!localSeenSet.contains(fp)){
+                        // Set these values to allow for proper serialization.
+                        curState.uid = 0;
+                        curState.workerId = (short) myGetId();
+
+                        // Write state to output file and update count.
+                        curState.write(this.vos.get(ind));
+                        cacheStateCounts.set(ind, cacheStateCounts.get(ind) + 1);
+                        localSeenSet.add(fp);
+
+                    }
                 }
             }
 

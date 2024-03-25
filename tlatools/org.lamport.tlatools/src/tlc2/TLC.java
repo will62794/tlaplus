@@ -14,6 +14,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -702,13 +703,18 @@ public class TLC {
                 // Parse list of variables to ignore/project in cached states e.g., var1,var2,var3
                 if (index < args.length)
                 {
-
+                    TLCGlobals.cacheStatesIgnoreVarsSets = new ArrayList<>();
                     String ignoreVars = args[index];
-                    TLCGlobals.cacheStatesIgnoreVars = ignoreVars.split(",");
+                    String[] ignoreVarLists = ignoreVars.split("\\|");
+                    for(int i = 0; i < ignoreVarLists.length; i++) {
+                        // System.out.println(ignoreVarLists[i]);
+                        String[] ignoreVarSet = ignoreVarLists[i].split(",");
+                        TLCGlobals.cacheStatesIgnoreVarsSets.add(Arrays.asList(ignoreVarSet));
+                    }
                     index++;
                 }
             } 
-            else if (args[index].equals("-aril"))
+                else if (args[index].equals("-aril"))
             {
                 index++;
                 if (index < args.length)
@@ -1112,7 +1118,9 @@ public class TLC {
             // Load the cached UniqueString intern table if we are loading cached states.
             if(this.cacheStates && TLCGlobals.cacheStatesMode.equals("load")){
                 // String fname = "statecache-" + new File(this.getSpecName()).getName() + "-internTbl";
-                String fname = TLCGlobals.getStateCacheBaseFilename(new File(this.getSpecName()).getName()) + "-internTbl";
+                // When loading from cache, we should only have 1 set of ignored variables.
+                List<String> ignoreVars = TLCGlobals.cacheStatesIgnoreVarsSets.get(0);
+                String fname = TLCGlobals.getStateCacheBaseFilename(new File(this.getSpecName()).getName(), ignoreVars) + "-internTbl";
                 UniqueString.internTbl.chkptNameUsesFileSep = false;
                 UniqueString.internTbl.recover(fname);
                 System.out.println("Recovered UniqueString table from " + fname);
@@ -1203,7 +1211,9 @@ public class TLC {
             try{
                 if(this.cacheStates && TLCGlobals.cacheStatesMode.equals("cache") && RunMode.SIMULATE.equals(runMode)){
                     // String fname = "statecache-" + this.tool.getRootName() + "-internTbl";
-                    String fname = TLCGlobals.getStateCacheBaseFilename(this.tool.getRootName()) + "-internTbl";
+                    // When loading from cache, we should only have 1 set of ignored variables.
+                    List<String> ignoreVars = TLCGlobals.cacheStatesIgnoreVarsSets.get(0);
+                    String fname = TLCGlobals.getStateCacheBaseFilename(this.tool.getRootName(), ignoreVars) + "-internTbl";
                     System.out.println("Saving UniqueString table to " + fname);
                     UniqueString.internTbl.chkptNameUsesFileSep = false;
                     // Map<String, UniqueString> tbl = UniqueString.internTbl.toMap();

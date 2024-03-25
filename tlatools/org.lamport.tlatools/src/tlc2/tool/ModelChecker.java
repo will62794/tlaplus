@@ -865,10 +865,24 @@ public class ModelChecker extends AbstractChecker
         // Checkpoint the UniqueString table if we are caching.
         if(this.cacheStates && TLCGlobals.cacheStatesMode.equals("cache")){
             // String fname = "statecache/" + this.tool.getRootName() + "-internTbl";
-            String fname = TLCGlobals.getStateCacheBaseFilename(this.tool.getRootName()) + "-internTbl";
-            UniqueString.internTbl.chkptNameUsesFileSep = false;
-            UniqueString.internTbl.beginChkpt(fname);
-            UniqueString.internTbl.commitChkpt(fname);
+            // Checkpoint UniqueString table for each projection slice.
+            TLCGlobals.cacheStatesIgnoreVarsSets.forEach(vars -> {
+                String fname = TLCGlobals.getStateCacheBaseFilename(this.tool.getRootName(), vars) + "-internTbl";
+                UniqueString.internTbl.chkptNameUsesFileSep = false;
+                try {
+                    UniqueString.internTbl.beginChkpt(fname);
+                    UniqueString.internTbl.commitChkpt(fname);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+                // UniqueString.internTbl.beginChkpt(fname);
+                // UniqueString.internTbl.commitChkpt(fname);
+            });
+            
+            // String fname = TLCGlobals.getStateCacheBaseFilename(this.tool.getRootName()) + "-internTbl";
+            // UniqueString.internTbl.chkptNameUsesFileSep = false;
+            // UniqueString.internTbl.beginChkpt(fname);
+            // UniqueString.internTbl.commitChkpt(fname);
         }
     	
         this.theFPSet.close();
