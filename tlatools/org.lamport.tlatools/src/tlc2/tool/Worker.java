@@ -69,7 +69,7 @@ public final class Worker extends IdThread implements IWorker, INextStateFunctor
     private List<Integer> cacheStateCounts = new ArrayList<Integer>();
         
 
-    private HashSet<Long> localSeenSet;
+    private List<HashSet<Long>> localSeenSet;
     HashSet<String> ignoredVarsForCache = new HashSet<>();
 
 	// SZ Feb 20, 2009: changed due to super type introduction
@@ -104,7 +104,7 @@ public final class Worker extends IdThread implements IWorker, INextStateFunctor
         if(this.cacheStates){ 
             // this.stateCacheFileName = TLCGlobals.getStateCacheBaseFilename(specFile) + "-" + myGetId();
             // this.stateCacheFileName = "statecache-" + specFile + "-" + myGetId();
-            localSeenSet = new HashSet<Long>();
+            localSeenSet = new ArrayList<HashSet<Long>>();
 
             // for(int i=0;i<TLCGlobals.cacheStatesIgnoreVars.length;i++){
                 // ignoredVarsForCache.add(TLCGlobals.cacheStatesIgnoreVars[i]);
@@ -216,8 +216,9 @@ public final class Worker extends IdThread implements IWorker, INextStateFunctor
                 } catch(IOException e){
                     e.printStackTrace();
                 }
+                localSeenSet.add(new HashSet<>());
                 // Add state count object for each one too.
-                cacheStateCounts.add(0);
+                // cacheStateCounts.add(0);
             });
         }
 
@@ -236,8 +237,10 @@ public final class Worker extends IdThread implements IWorker, INextStateFunctor
                         // this.vos.close();
                         // Write each state cache count.
                         for(int i=0;i<TLCGlobals.cacheStatesIgnoreVarsSets.size();i++){
-                            ValueOutputStream countVos = new ValueOutputStream(stateCacheFileName(TLCGlobals.cacheStatesIgnoreVarsSets.get(i)) + "-count");
-                            countVos.writeInt(cacheStateCounts.get(i));
+                            String fname = stateCacheFileName(TLCGlobals.cacheStatesIgnoreVarsSets.get(i)) + "-count";
+                            System.out.printf("Saving state cache count to '%s' with count of %d states.\n", fname, this.localSeenSet.get(i).size());
+                            ValueOutputStream countVos = new ValueOutputStream(fname);
+                            countVos.writeInt(localSeenSet.get(i).size());
                             countVos.close();
                         }
                     }
@@ -554,7 +557,7 @@ public final class Worker extends IdThread implements IWorker, INextStateFunctor
                             }
                         }
                         
-                        if(!localSeenSet.contains(fp)){
+                        if(!localSeenSet.get(ind).contains(fp)){
                             // Write state to output file andu update count.
                             // String[] vars = succState.getVarsAsStrings();
                             // Print each var:
@@ -564,8 +567,8 @@ public final class Worker extends IdThread implements IWorker, INextStateFunctor
                             // System.out.println("===");
 
                             succState.write(this.vos.get(ind));
-                            cacheStateCounts.set(ind, cacheStateCounts.get(ind) + 1);
-                            localSeenSet.add(fp);
+                            // cacheStateCounts.set(ind, cacheStateCounts.get(ind) + 1);
+                            localSeenSet.get(ind).add(fp);
                         }
                         ind += 1;
                     }

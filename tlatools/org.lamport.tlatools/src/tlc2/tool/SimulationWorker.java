@@ -128,7 +128,7 @@ public class SimulationWorker extends IdThread {
     private List<ValueOutputStream> vos;
     private List<Integer> cacheStateCounts = new ArrayList<Integer>();
 
-    private HashSet<Long> localSeenSet;
+    private List<HashSet<Long>> localSeenSet;
     HashSet<String> ignoredVarsForCache = new HashSet<>();
 
     private List<StateVec> waypointSets = new ArrayList<>();
@@ -260,7 +260,7 @@ public class SimulationWorker extends IdThread {
             // String fname = "statecache-" + new File(this.getSpecName()).getName() + "-internTbl";
             // this.stateCacheFileName = TLCGlobals.getStateCacheBaseFilename(tool.getRootName(), TLCGlobals.cacheStatesIgnoreVarsSets.get(0)) + "-" + myGetId();
             // this.stateCacheFileName = "statecache-" + tool.getRootName() + "-" + myGetId();
-            localSeenSet = new HashSet<Long>();
+            localSeenSet = new ArrayList<HashSet<Long>>();
             this.vos = new ArrayList<>();
 
             // for(int i=0;i<TLCGlobals.cacheStatesIgnoreVars.length;i++){
@@ -324,6 +324,7 @@ public class SimulationWorker extends IdThread {
                 } catch(IOException e){
                     e.printStackTrace();
                 }
+                localSeenSet.add(new HashSet<>());
                 // Add state count object for each one too.
                 cacheStateCounts.add(0);
             });
@@ -369,10 +370,13 @@ public class SimulationWorker extends IdThread {
                         // Write each state cache count.
                         for(int i=0;i<TLCGlobals.cacheStatesIgnoreVarsSets.size();i++){
                             String fname = stateCacheFileName(TLCGlobals.cacheStatesIgnoreVarsSets.get(i));
+                            System.out.printf("Saving state cache to '%s' and writing state count of %d states.\n", fname, this.localSeenSet.get(i).size());
+
                             this.vos.get(i).close();
-                            System.out.printf("Saving state cache to '%s' and writing state count of %d states.\n", fname, this.cacheStateCounts.get(i));
+
                             ValueOutputStream countVos = new ValueOutputStream(fname + "-count");
-                            countVos.writeInt(cacheStateCounts.get(i));
+                            // countVos.writeInt(cacheStateCounts.get(i));
+                            countVos.writeInt(this.localSeenSet.get(i).size());
                             countVos.close();
                         }
                     }
@@ -617,11 +621,12 @@ public class SimulationWorker extends IdThread {
                 //
 
                 int ind = 0;
+                Map<UniqueString, IValue> vals = curState.getVals();
+
                 // Check state for each projection we are computing.
                 for(List<String> vars : TLCGlobals.cacheStatesIgnoreVarsSets){
 
                     long fp = 0;
-                    Map<UniqueString, IValue> vals = curState.getVals();
                     //for loop to iterate over keys of the Map.
                     for (Map.Entry<UniqueString, IValue> entry : vals.entrySet()) {
                         UniqueString key = entry.getKey();
@@ -631,17 +636,18 @@ public class SimulationWorker extends IdThread {
                         }
                     }
                     
-                    if(!localSeenSet.contains(fp)){
+                    if(!localSeenSet.get(ind).contains(fp)){
                         // Set these values to allow for proper serialization.
                         curState.uid = 0;
                         curState.workerId = (short) myGetId();
 
                         // Write state to output file and update count.
                         curState.write(this.vos.get(ind));
-                        cacheStateCounts.set(ind, cacheStateCounts.get(ind) + 1);
-                        localSeenSet.add(fp);
+                        // cacheStateCounts.set(ind, cacheStateCounts.get(ind) + 1);
+                        localSeenSet.get(ind).add(fp);
 
                     }
+                    ind += 1;
                 }
             }
 

@@ -1208,26 +1208,25 @@ public class TLC {
         {
 
             // Checkpoint the UniqueString table if we are caching.
-            try{
-                if(this.cacheStates && TLCGlobals.cacheStatesMode.equals("cache") && RunMode.SIMULATE.equals(runMode)){
-                    // String fname = "statecache-" + this.tool.getRootName() + "-internTbl";
-                    // When loading from cache, we should only have 1 set of ignored variables.
-                    List<String> ignoreVars = TLCGlobals.cacheStatesIgnoreVarsSets.get(0);
-                    String fname = TLCGlobals.getStateCacheBaseFilename(this.tool.getRootName(), ignoreVars) + "-internTbl";
-                    System.out.println("Saving UniqueString table to " + fname);
-                    UniqueString.internTbl.chkptNameUsesFileSep = false;
-                    // Map<String, UniqueString> tbl = UniqueString.internTbl.toMap();
-                    // print each element of tbl map.
-                    // for (Map.Entry<String, UniqueString> entry : tbl.entrySet()) {
-                        // System.out.println(entry.getKey() + " -> " + entry.getValue());
-                    // }
+            // try{
 
-                    UniqueString.internTbl.beginChkpt(fname);
-                    UniqueString.internTbl.commitChkpt(fname);
-                }
-            } catch(IOException e){
-                MP.printError(EC.GENERAL, e);
+            if(this.cacheStates && TLCGlobals.cacheStatesMode.equals("cache") && RunMode.SIMULATE.equals(runMode)){
+                TLCGlobals.cacheStatesIgnoreVarsSets.forEach(vars -> {
+                    String fname = TLCGlobals.getStateCacheBaseFilename(this.tool.getRootName(), vars) + "-internTbl";
+                    System.out.println("Saving internTbl to '" + fname + "'");
+                    UniqueString.internTbl.chkptNameUsesFileSep = false;
+                    try {
+                        UniqueString.internTbl.beginChkpt(fname);
+                        UniqueString.internTbl.commitChkpt(fname);
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                });
             }
+
+            // } catch(IOException e){
+                // MP.printError(EC.GENERAL, e);
+            // }
             
 
         	if (tlc2.module.TLC.OUTPUT != null) {
