@@ -358,18 +358,20 @@ public class SimulationWorker extends IdThread {
 				// Abide by the maximum trace generation count.
 				if (traceCnt >= maxTraceNum) {
                     if(this.cacheStates){
-
-                        this.vos.forEach(vos -> {
-                            try{
-                                vos.close();
-                            } catch(IOException e){
-                                e.printStackTrace();
-                            }
-                        });
+                        // this.vos.forEach(v -> {
+                        //     try{
+                        //         System.out.printf("Saving state cache to '%s' and writing state count of %d states.\n", fname, this.cacheStateCounts.get(i));
+                        //         v.close();
+                        //     } catch(IOException e){
+                        //         e.printStackTrace();
+                        //     }
+                        // });
                         // Write each state cache count.
                         for(int i=0;i<TLCGlobals.cacheStatesIgnoreVarsSets.size();i++){
-                            System.out.printf("Saving state cache and writing state count of %d states.\n", this.cacheStateCounts.get(i));
-                            ValueOutputStream countVos = new ValueOutputStream(stateCacheFileName(TLCGlobals.cacheStatesIgnoreVarsSets.get(i)) + "-count");
+                            String fname = stateCacheFileName(TLCGlobals.cacheStatesIgnoreVarsSets.get(i));
+                            this.vos.get(i).close();
+                            System.out.printf("Saving state cache to '%s' and writing state count of %d states.\n", fname, this.cacheStateCounts.get(i));
+                            ValueOutputStream countVos = new ValueOutputStream(fname + "-count");
                             countVos.writeInt(cacheStateCounts.get(i));
                             countVos.close();
                         }
@@ -624,7 +626,7 @@ public class SimulationWorker extends IdThread {
                     for (Map.Entry<UniqueString, IValue> entry : vals.entrySet()) {
                         UniqueString key = entry.getKey();
                         IValue val = entry.getValue();
-                        if(!ignoredVarsForCache.contains(key.toString())){
+                        if(!vars.contains(key.toString())){
                             fp = val.fingerPrint(fp);
                         }
                     }
