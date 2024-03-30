@@ -1147,7 +1147,7 @@ public class TLC {
 				
 				tool = new FastTool(mainFile, configFile, resolver, Mode.Simulation);
 				Simulator simulator = new Simulator(tool, metadir, traceFile, deadlock, traceDepth, traceNum, rng, seed,
-						resolver, TLCGlobals.getNumWorkers(), this.cacheStates);
+						resolver, TLCGlobals.getNumWorkers(), this.cacheStates, FPSetFactory.getFPSetInitialized(fpSetConfiguration, metadir, new File(mainFile).getName()));
                 TLCGlobals.simulator = simulator;
                 result = simulator.simulate();
 			} else { // RunMode.MODEL_CHECK

@@ -138,6 +138,8 @@ public class SimulationWorker extends IdThread {
     private String specFile;
 
     Simulator simulator;
+
+    long startTime = 0;
 	
 	/**
 	 * Encapsulates information about an error produced by a simulation worker.
@@ -256,6 +258,8 @@ public class SimulationWorker extends IdThread {
         this.cacheStates = cacheStates;
         this.specFile = tool.getRootName();
 
+        this.startTime = System.currentTimeMillis();
+
         if(this.cacheStates){
             // String fname = "statecache-" + new File(this.getSpecName()).getName() + "-internTbl";
             // this.stateCacheFileName = TLCGlobals.getStateCacheBaseFilename(tool.getRootName(), TLCGlobals.cacheStatesIgnoreVarsSets.get(0)) + "-" + myGetId();
@@ -278,6 +282,10 @@ public class SimulationWorker extends IdThread {
 			this.actionStats = new long[1][1];
 		}
 	}
+
+    public HashSet<Long> getLocalSeenSet(int sliceInd){
+        return this.localSeenSet.get(sliceInd);
+    }
 	
 	/**
 	 * The main worker loop. Continually generates random traces until the trace count limit
@@ -636,7 +644,8 @@ public class SimulationWorker extends IdThread {
                         }
                     }
                     
-                    if(!localSeenSet.get(ind).contains(fp)){
+                    // if(!localSeenSet.get(ind).contains(fp)){
+                    if(!this.simulator.theFPSet.contains(fp)){
                         // Set these values to allow for proper serialization.
                         curState.uid = 0;
                         curState.workerId = (short) myGetId();
@@ -645,6 +654,8 @@ public class SimulationWorker extends IdThread {
                         curState.write(this.vos.get(ind));
                         // cacheStateCounts.set(ind, cacheStateCounts.get(ind) + 1);
                         localSeenSet.get(ind).add(fp);
+
+                        this.simulator.theFPSet.put(fp);
 
                     }
                     ind += 1;
