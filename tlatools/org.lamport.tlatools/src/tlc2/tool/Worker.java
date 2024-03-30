@@ -97,6 +97,10 @@ public final class Worker extends IdThread implements IWorker, INextStateFunctor
         return TLCGlobals.getStateCacheBaseFilename(this.specFile, ignoreVars) + "-" + myGetId();
     }
 
+    public HashSet<Long> getLocalSeenSet(int sliceInd){
+        return this.localSeenSet.get(sliceInd);
+    }
+
     public Worker(int id, AbstractChecker tlc, String metadir, String specFile, boolean cacheStates) throws IOException {
         this(id, tlc, metadir, specFile);
 

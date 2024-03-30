@@ -878,6 +878,22 @@ public class ModelChecker extends AbstractChecker
                 // UniqueString.internTbl.beginChkpt(fname);
                 // UniqueString.internTbl.commitChkpt(fname);
             });
+
+            // Log info about cached slice sizes.
+            for(int ind=0; ind < TLCGlobals.cacheStatesIgnoreVarsSets.size(); ind++){
+                long totalCachedStates = 0;
+                HashSet<Long> uniqueStates = new HashSet<>();
+                for (IWorker worker : workers) {
+                    Worker localWorker = (Worker) worker;
+                    totalCachedStates += localWorker.getLocalSeenSet(ind).size();
+                    // Record unique states across ALL workers.
+                    uniqueStates.addAll(localWorker.getLocalSeenSet(ind));
+                }
+                // Join ignore set by comma.
+                String varSetStr = String.join(",", TLCGlobals.cacheStatesIgnoreVarsSets.get(ind));
+                // System.out.printf("Slice (%d,%s) -> total simulation cached states: %d\n", ind, varSetStr, totalCachedStates);
+                System.out.printf("Slice_%d %s -> total unique cached states: %d\n", ind, varSetStr, uniqueStates.size());
+            }
             
             // String fname = TLCGlobals.getStateCacheBaseFilename(this.tool.getRootName()) + "-internTbl";
             // UniqueString.internTbl.chkptNameUsesFileSep = false;

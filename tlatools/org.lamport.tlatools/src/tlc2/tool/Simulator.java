@@ -421,7 +421,7 @@ public class Simulator {
                 // Join ignore set by comma.
                 String varSetStr = String.join(",", TLCGlobals.cacheStatesIgnoreVarsSets.get(ind));
                 // System.out.printf("Slice (%d,%s) -> total simulation cached states: %d\n", ind, varSetStr, totalCachedStates);
-                System.out.printf("Slice_%d %s -> total unique simulation cached states: %d\n", ind, varSetStr, uniqueStates.size());
+                System.out.printf("Slice_%d %s -> total unique cached states: %d\n", ind, varSetStr, uniqueStates.size());
             }
         }
 
