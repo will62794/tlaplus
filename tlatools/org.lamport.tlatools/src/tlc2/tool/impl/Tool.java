@@ -854,14 +854,25 @@ public abstract class Tool
                     return;
                     */
 
+                    // If a set of ignored/projected variables are specified, then ignore these when generating possible
+                    // initial states i.e. don't generate different values for these variables, since they are marked
+                    // as irrelevant to the properties being computed in this model checking run.
+                    Value elemChosen = null;
+                    if(TLCGlobals.cacheStatesIgnoreVarsSets.size() == 1 &&
+                       TLCGlobals.cacheStatesIgnoreVarsSets.get(0).contains(varName.toString())){
+                        ValueEnumeration Enum = ((Enumerable)rval).elements(Ordering.NORMALIZED);
+                        elemChosen = Enum.nextElement();
+                    } else{
+                        // Simply pick a random value for this state variable from its domain.
+                        ValueEnumeration Enum = ((Enumerable)rval).elements(Ordering.RANDOMIZED);
+                        elemChosen = Enum.nextElement();
+                    }
                     
-                    // Simply pick a random value for this state variable from its domain.
-                    ValueEnumeration Enum = ((Enumerable)rval).elements(Ordering.RANDOMIZED);
-                    Value randomElem = Enum.nextElement();
+                    
 
                     // System.out.printf("=== Bound random val, %s = %s\n", varName, randomElem.toString());
 
-                    ps.bind(varName, randomElem);
+                    ps.bind(varName, elemChosen);
                     this.getInitStates(acts, ps, states, cm);
                     ps.unbind(varName);
                     return;
