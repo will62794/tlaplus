@@ -975,19 +975,25 @@ public class LiveWorker implements Callable<Boolean> {
 		 */ 
 		
 		final int stateNumber = (int) cycleState.stateNumber; // if the cast causes problems the trace won't be comprehensible anyway.
-		if (sinfo.fingerPrint() == cycleState.fingerPrint()) {
-			StatePrinter.printStutteringState(stateNumber);
-		} else {
-			// The new sinfo.state is equivalent to cycleState after getState(..). The
-			// sinfo.info has the name of the action that closes the loop of the lasso/takes
-			// us back to cycleState.
-			sinfo = tool.getState(cycleState.fingerPrint(), sinfo);
-			// The print stmts below claim there is a cycle, thus assert that
-			// there is indeed one. Index-based lookup into states array is
-			// reduced by one because cyclePos is human-readable.
-			assert cycleState.state.equals(sinfo.state);
-			StatePrinter.printBackToState(sinfo, stateNumber);
-		}
+		// if (sinfo.fingerPrint() == cycleState.fingerPrint()) {
+		// 	StatePrinter.printStutteringState(stateNumber);
+		// } else {
+        
+        //
+        // For now, just always print cycles as loops, not as stuttering (Will S. 4/9/24)
+        //
+
+        // The new sinfo.state is equivalent to cycleState after getState(..). The
+        // sinfo.info has the name of the action that closes the loop of the lasso/takes
+        // us back to cycleState.
+        sinfo = tool.getState(cycleState.fingerPrint(), sinfo);
+        // The print stmts below claim there is a cycle, thus assert that
+        // there is indeed one. Index-based lookup into states array is
+        // reduced by one because cyclePos is human-readable.
+        assert cycleState.state.equals(sinfo.state);
+        StatePrinter.printBackToState(sinfo, stateNumber);
+
+		// }
 		
 		tool.getDebugger().checkPostConditionWithCounterExample(new CounterExample(states, sinfo.getAction(), stateNumber));
 	}
