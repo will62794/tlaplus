@@ -84,6 +84,9 @@ public class SimulationWorker extends IdThread {
 	
 	// The set of initial states for the spec. 
 	private StateVec initStates;
+
+    // Set of initial states computed locally, that we sometimes use instead of global ones.
+	private StateVec localInitStates;
 	
 	// The queue that the worker places its results onto.
 	private final BlockingQueue<SimulationWorkerResult> resultQueue;
@@ -140,6 +143,10 @@ public class SimulationWorker extends IdThread {
     Simulator simulator;
 
     long startTime = 0;
+
+    private boolean autoInitSampling = false;
+
+    private long initSeed;
 	
 	/**
 	 * Encapsulates information about an error produced by a simulation worker.
@@ -243,6 +250,7 @@ public class SimulationWorker extends IdThread {
 		super(id);
         this.simulator = simulator;
 		this.localRng = new RandomGenerator(seed);
+		this.initSeed = seed;
 		this.tool = tool;
 		this.maxTraceDepth = maxTraceDepth;
 		this.maxTraceNum = maxTraceNum;
@@ -339,6 +347,60 @@ public class SimulationWorker extends IdThread {
 
 
         }
+
+
+        autoInitSampling = Boolean.getBoolean(Tool.class.getName() + ".autoInitStatesSampling");
+
+        // Generate initial states locally if we are doing auto sampling for CTI generation.
+
+        StateVec myInitStates = this.tool.getInitStates();
+
+        if(autoInitSampling){
+            System.out.printf("Simulation worker %d computing local initial states in autoInitSamling mode (seed=%d).\n", myGetId(), initSeed);
+
+            int targetInitStateSetSizeDefault = 20000;
+            int defaultLimitMS = 10000;
+            
+            int autoInitSamplingTargetNumInitStates = Integer.getInteger(Tool.class.getName() + ".autoInitSamplingTargetNumInitStates", targetInitStateSetSizeDefault);
+            int autoInitSamplingTimeLimitMS = Integer.getInteger(Tool.class.getName() + ".autoInitSamplingTimeLimitMS", defaultLimitMS);
+
+            int sampleIters = 0;
+            long startTime = System.currentTimeMillis();
+
+            // Keep sampling until we reach desired target size of initial states.
+            while(myInitStates.size() < autoInitSamplingTargetNumInitStates){
+                StateVec newInitStates = this.tool.getInitStates();
+                // System.out.printf("round %d - init states: %d\n", i, initStates.size());
+                // totalInitStates += newInitStates.size();
+                for(int k=0;k < newInitStates.size(); k++){
+                    myInitStates.addElement(newInitStates.elementAt(k));
+                }
+                // Also consider adding time threshold that if reached first terminates the loop.
+                long currTime = System.currentTimeMillis();
+                long durationMS = currTime - startTime;
+
+                if(durationMS > autoInitSamplingTimeLimitMS){
+                    System.out.printf("Sampling time limit of %d ms reached, terminating.\n", autoInitSamplingTimeLimitMS);
+                    break;
+                }
+
+                sampleIters += 1;
+
+                // Print out periodic progress.
+                int progressIntervalStates = 1000;
+                if(myInitStates.size() % progressIntervalStates == 0 && myInitStates.size() > 0 && newInitStates.size() > 0){
+                    System.out.printf("[worker-%d] Found %d initial states so far (%d states sampled)\n", myGetId(), myInitStates.size(), sampleIters);
+                }
+            }
+
+            System.out.printf("[worker-%d] Total sample iters: %d\n", myGetId(), sampleIters);
+            System.out.printf("[worker-%d] Total init states calculated: %d\n", myGetId(), myInitStates.size());
+
+            // Set the local initial states.
+            localInitStates = myInitStates;
+        }
+
+
 
 		while(true) {
 			try {
@@ -449,7 +511,12 @@ public class SimulationWorker extends IdThread {
 		stateTrace.clear();
 
 		// a) Randomly select a state from the set of init states.
-		curState = randomState(this.localRng, initStates);
+        // If we are in autoInitSampling mode, we use the locally computed localInitStates set.
+        if(this.autoInitSampling){
+            curState = randomState(this.localRng, localInitStates);
+        } else{
+            curState = randomState(this.localRng, initStates);
+        }
 
         // In waypoint mode we start from a random state in the most recent previous waypoint set, if
         // we have already populated it with some states.

@@ -228,44 +228,48 @@ public class Simulator {
         //
         boolean autoInitSampling = Boolean.getBoolean(Tool.class.getName() + ".autoInitStatesSampling");
         if(autoInitSampling){
-
-            int targetInitStateSetSizeDefault = 20000;
-            int defaultLimitMS = 10000;
             
-            int autoInitSamplingTargetNumInitStates = Integer.getInteger(Tool.class.getName() + ".autoInitSamplingTargetNumInitStates", targetInitStateSetSizeDefault);
-            int autoInitSamplingTimeLimitMS = Integer.getInteger(Tool.class.getName() + ".autoInitSamplingTimeLimitMS", defaultLimitMS);
+            //////////////////////
+            // N.B. Now we are doing this initial state generation locally inside each SimulationWorker thread.
+            /////////////////////
 
-            int sampleIters = 0;
-            long startTime = System.currentTimeMillis();
+            // int targetInitStateSetSizeDefault = 20000;
+            // int defaultLimitMS = 10000;
+            
+            // int autoInitSamplingTargetNumInitStates = Integer.getInteger(Tool.class.getName() + ".autoInitSamplingTargetNumInitStates", targetInitStateSetSizeDefault);
+            // int autoInitSamplingTimeLimitMS = Integer.getInteger(Tool.class.getName() + ".autoInitSamplingTimeLimitMS", defaultLimitMS);
 
-            // Keep sampling until we reach desired target size of initial states.
-            while(initStates.size() < autoInitSamplingTargetNumInitStates){
-                StateVec newInitStates = this.tool.getInitStates();
-                // System.out.printf("round %d - init states: %d\n", i, initStates.size());
-                // totalInitStates += newInitStates.size();
-                for(int k=0;k < newInitStates.size(); k++){
-                    initStates.addElement(newInitStates.elementAt(k));
-                }
-                // Also consider adding time threshold that if reached first terminates the loop.
-                long currTime = System.currentTimeMillis();
-                long durationMS = currTime - startTime;
+            // int sampleIters = 0;
+            // long startTime = System.currentTimeMillis();
 
-                if(durationMS > autoInitSamplingTimeLimitMS){
-                    System.out.printf("Sampling time limit of %d ms reached, terminating.\n", autoInitSamplingTimeLimitMS);
-                    break;
-                }
+            // // Keep sampling until we reach desired target size of initial states.
+            // while(initStates.size() < autoInitSamplingTargetNumInitStates){
+            //     StateVec newInitStates = this.tool.getInitStates();
+            //     // System.out.printf("round %d - init states: %d\n", i, initStates.size());
+            //     // totalInitStates += newInitStates.size();
+            //     for(int k=0;k < newInitStates.size(); k++){
+            //         initStates.addElement(newInitStates.elementAt(k));
+            //     }
+            //     // Also consider adding time threshold that if reached first terminates the loop.
+            //     long currTime = System.currentTimeMillis();
+            //     long durationMS = currTime - startTime;
 
-                sampleIters += 1;
+            //     if(durationMS > autoInitSamplingTimeLimitMS){
+            //         System.out.printf("Sampling time limit of %d ms reached, terminating.\n", autoInitSamplingTimeLimitMS);
+            //         break;
+            //     }
 
-                // Print out periodic progress.
-                int progressIntervalStates = 1000;
-                if(initStates.size() % progressIntervalStates == 0 && initStates.size() > 0 && newInitStates.size() > 0){
-                    System.out.printf("Found %d initial states so far (%d states sampled)\n", initStates.size(), sampleIters);
-                }
-            }
+            //     sampleIters += 1;
 
-            System.out.printf("Total sample iters: %d\n", sampleIters);
-            System.out.printf("Total init states calculated: %d\n", initStates.size());
+            //     // Print out periodic progress.
+            //     int progressIntervalStates = 1000;
+            //     if(initStates.size() % progressIntervalStates == 0 && initStates.size() > 0 && newInitStates.size() > 0){
+            //         System.out.printf("Found %d initial states so far (%d states sampled)\n", initStates.size(), sampleIters);
+            //     }
+            // }
+
+            // System.out.printf("Total sample iters: %d\n", sampleIters);
+            // System.out.printf("Total init states calculated: %d\n", initStates.size());
         }
 
 		//
