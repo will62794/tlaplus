@@ -318,7 +318,8 @@ public class Simulator {
 			return errorCode;
 		}
 
-		if (this.numOfGenStates.longValue() == 0) {
+        // Don't return early here if we are doing init sampling.
+		if (this.numOfGenStates.longValue() == 0 && !autoInitSampling) {
 			return MP.printError(EC.TLC_NO_STATES_SATISFYING_INIT);
 		}
 
