@@ -10,6 +10,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.List;
 import java.util.Set;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
@@ -30,6 +31,7 @@ import tlc2.tool.queue.IStateQueue;
 import tlc2.util.IStateWriter;
 import tlc2.util.SetOfStates;
 import tlc2.util.statistics.BucketStatistics;
+import tlc2.value.impl.StringValue;
 import util.Assert;
 import util.DebugPrinter;
 import util.FileUtil;
@@ -72,6 +74,10 @@ public class ModelChecker extends AbstractChecker
 
 	// The set of invariants, identified by name, that have been violated so far in this run.
 	public Set violatedInvs = new HashSet<String>();
+
+    // The of invariants, identified by name, that have been violated so far in this run along with a set of 
+    // many states violated that invariant. 
+	public HashMap violatedInvsStates = new HashMap<String, HashSet<String>>();
 
     // Max depth to explore in state graph.
     int maxDepth = Integer.MAX_VALUE;
@@ -374,6 +380,11 @@ public class ModelChecker extends AbstractChecker
         	functor = new DoInitFunctor(tool);
         }
 		try {
+            // Add each invariant to the violatedInvsCount map.
+            for (int i = 0; i < tool.getInvariants().length; i++) {
+                violatedInvsStates.put(tool.getInvNames()[i], new HashSet<String>());
+            }
+
 			tool.getInitStates(functor);
 		} catch (DoInitFunctor.InvariantViolatedException ive) {
 			this.errState = functor.errState;
@@ -382,6 +393,18 @@ public class ModelChecker extends AbstractChecker
 			this.errState = functor.errState;
 			throw e;
 		}
+
+
+        if(TLCGlobals.checkCTIElimination){
+            // Print out an entry for each invariant and the violation count.
+            for (Object inv : violatedInvsStates.keySet()) {
+                HashSet<String> sts = (HashSet<String>) violatedInvsStates.get(inv);
+                String joined = String.join(",", sts);
+                System.out.println("invariant_states_violated|" + inv + "|" + joined);
+            }
+        }
+
+
 		
 		// Iff one of the init states' checks violates any properties, the
 		// functor will record it.
@@ -1248,6 +1271,14 @@ public class ModelChecker extends AbstractChecker
 				if (!seen || forceChecks) {
 					for (int j = 0; j < tool.getInvariants().length; j++) {
 						if (!tool.isValid(tool.getInvariants()[j], curState)) {
+
+                            if(TLCGlobals.checkCTIElimination){
+                                String invName = tool.getInvNames()[j];
+                                StringValue ctiId = (StringValue)curState.getVals().get(UniqueString.of("ctiId"));
+                                HashSet<String> sts = (HashSet<String>) violatedInvsStates.get(invName);
+                                sts.add(ctiId.getVal().toString());
+                                continue;
+                            }
 
 							if(TLCGlobals.checkAllInvariants){
 								String invName = tool.getInvNames()[j];

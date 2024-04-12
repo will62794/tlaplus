@@ -46,6 +46,7 @@ public class TLCGlobals
     // public static String[] cacheStatesIgnoreVars = new String[0];
     public static List<List<String>> cacheStatesIgnoreVarsSets = new ArrayList<>();
     public static String cacheStatesMode = "cache"; // "cache" or "load".
+    public static boolean checkCTIElimination = false;
     
 	/**
 	 * Execute liveness checking when any of the disk graphs' size has increased

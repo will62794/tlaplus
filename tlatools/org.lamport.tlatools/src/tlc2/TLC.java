@@ -713,6 +713,10 @@ public class TLC {
                     }
                     index++;
                 }
+            }  else if (args[index].equals("-checkCTIElimination"))
+            {
+                index++;
+                TLCGlobals.checkCTIElimination = true;
             } 
                 else if (args[index].equals("-aril"))
             {
