@@ -116,16 +116,16 @@ public final class Worker extends IdThread implements IWorker, INextStateFunctor
         }
     }
 
-    public int loadAndCheckCachedStates() throws IOException {
-        System.out.println("Attempting to load cached states from '" + stateCacheFileName(TLCGlobals.cacheStatesIgnoreVarsSets.get(0)) + "'");
+    public int loadAndCheckCachedStatesInvGroup(List<String> ignoreVarSet, int invRangeStart, int invRangeEnd) throws IOException {
+        System.out.println("Attempting to load cached states from '" + stateCacheFileName(ignoreVarSet) + "'");
 
         // Load the number of states.
-        ValueInputStream countVis = new ValueInputStream(stateCacheFileName(TLCGlobals.cacheStatesIgnoreVarsSets.get(0)) + "-count");
+        ValueInputStream countVis = new ValueInputStream(stateCacheFileName(ignoreVarSet) + "-count");
         int stateCount = countVis.readInt();
         countVis.close();
         System.out.printf("Read count of %d cached states.\n", stateCount);
 
-        ValueInputStream vis = new ValueInputStream(stateCacheFileName(TLCGlobals.cacheStatesIgnoreVarsSets.get(0)));
+        ValueInputStream vis = new ValueInputStream(stateCacheFileName(ignoreVarSet));
         int i;
         for (i = 0; i < stateCount; i++) {
             TLCState s = TLCState.Empty.createEmpty();
@@ -133,9 +133,7 @@ public final class Worker extends IdThread implements IWorker, INextStateFunctor
             if(i % 100000 == 0 && i > 0){
                 System.out.printf("[TLCWorker-%d] Read %d / %d states.\n", this.myGetId() ,i, stateCount);
             }
-
             // for (int k = 0; k < this.tool.getInvariants().length; k++){
-
             try{
                 // String[] vars = s.getVarsAsStrings();
                 // Print each var:
@@ -144,40 +142,94 @@ public final class Worker extends IdThread implements IWorker, INextStateFunctor
                 // }   
 
                 // System.out.println(s.toString());
-                this.doNextCheckInvariants(s, s);
+                this.doNextCheckInvariants(s, s, invRangeStart, invRangeEnd);
             } catch(Exception e){
                 e.printStackTrace();
                 vis.close();
                 return i;
             }
-
-                // if (!tool.isValid(this.tool.getInvariants()[k], s)){
-                //     synchronized (this.tlc)a
-                //     {
-                //         try{
-                //             System.out.println("Invariant violated:" + this.tool.getInvNames()[k]);
-                //             // this.tlc.doNextSetErr(s, TLCState.Empty, false, 
-                //                 // EC.TLC_INVARIANT_VIOLATED_BEHAVIOR, this.tool.getInvNames()[0]);
-                //             int ec = EC.TLC_INVARIANT_VIOLATED_BEHAVIOR;
-                //             if (this.tlc.setErrState(s, TLCState.Empty, false, ec))
-                //             {
-                //                 // MP.printError(ec);
-                //                 System.out.printf("Invariant %s is violated.\n", this.tool.getInvNames()[k]);
-                //                 System.out.println(s.toString());
-                //                 this.tlc.theStateQueue.finishAll();
-                //                 this.tlc.notify();
-                //             }
-
-                //         } catch(Exception e){
-                //             e.printStackTrace();
-                //         }
-                //         return i;
-                //     }
-                // }
-            // }
         }
         vis.close();
         return i;
+    }
+
+    public int loadAndCheckCachedStates() throws IOException {
+        System.out.println("Attempting to load cached states from '" + stateCacheFileName(TLCGlobals.cacheStatesIgnoreVarsSets.get(0)) + "'");
+
+
+        // For each ignoreVarSet
+        int invRangeStart = 0;
+        int invRangeEnd = 0;
+        for(int i=0;i<TLCGlobals.cacheStatesIgnoreVarsSets.size();i++){
+            List<String> ignoreVarSet = TLCGlobals.cacheStatesIgnoreVarsSets.get(i);
+            int invGroupCount = TLCGlobals.cacheStatesIgnoreVarsInvListCounts.get(i);
+            invRangeEnd = invRangeStart + invGroupCount;
+            int numStates = loadAndCheckCachedStatesInvGroup(ignoreVarSet, invRangeStart, invRangeEnd);
+            System.out.printf("Loaded %d serialized states and checked %d invs in %dms\n", numStates, this.tool.getInvariants().length , invCheckDuration / (1000*1000));
+            invRangeStart += invGroupCount;
+        }
+
+        return 0;
+
+        // // Load the number of states.
+        // ValueInputStream countVis = new ValueInputStream(stateCacheFileName(TLCGlobals.cacheStatesIgnoreVarsSets.get(0)) + "-count");
+        // int stateCount = countVis.readInt();
+        // countVis.close();
+        // System.out.printf("Read count of %d cached states.\n", stateCount);
+
+        // ValueInputStream vis = new ValueInputStream(stateCacheFileName(TLCGlobals.cacheStatesIgnoreVarsSets.get(0)));
+        // int i;
+        // for (i = 0; i < stateCount; i++) {
+        //     TLCState s = TLCState.Empty.createEmpty();
+        //     s.read(vis);
+        //     if(i % 100000 == 0 && i > 0){
+        //         System.out.printf("[TLCWorker-%d] Read %d / %d states.\n", this.myGetId() ,i, stateCount);
+        //     }
+
+        //     // for (int k = 0; k < this.tool.getInvariants().length; k++){
+
+        //     try{
+        //         // String[] vars = s.getVarsAsStrings();
+        //         // Print each var:
+        //         // for(int j=0;j<vars.length;j++){
+        //             // System.out.printf("- %s\n", vars[j]);
+        //         // }   
+
+        //         // System.out.println(s.toString());
+        //         this.doNextCheckInvariants(s, s);
+        //     } catch(Exception e){
+        //         e.printStackTrace();
+        //         vis.close();
+        //         return i;
+        //     }
+
+        //         // if (!tool.isValid(this.tool.getInvariants()[k], s)){
+        //         //     synchronized (this.tlc)a
+        //         //     {
+        //         //         try{
+        //         //             System.out.println("Invariant violated:" + this.tool.getInvNames()[k]);
+        //         //             // this.tlc.doNextSetErr(s, TLCState.Empty, false, 
+        //         //                 // EC.TLC_INVARIANT_VIOLATED_BEHAVIOR, this.tool.getInvNames()[0]);
+        //         //             int ec = EC.TLC_INVARIANT_VIOLATED_BEHAVIOR;
+        //         //             if (this.tlc.setErrState(s, TLCState.Empty, false, ec))
+        //         //             {
+        //         //                 // MP.printError(ec);
+        //         //                 System.out.printf("Invariant %s is violated.\n", this.tool.getInvNames()[k]);
+        //         //                 System.out.println(s.toString());
+        //         //                 this.tlc.theStateQueue.finishAll();
+        //         //                 this.tlc.notify();
+        //         //             }
+
+        //         //         } catch(Exception e){
+        //         //             e.printStackTrace();
+        //         //         }
+        //         //         return i;
+        //         //     }
+        //         // }
+        //     // }
+        // }
+        // vis.close();
+        // return i;
     }
 
 	/**
@@ -639,8 +691,12 @@ public final class Worker extends IdThread implements IWorker, INextStateFunctor
 		}
 		return seen;
 	}
+    private final boolean doNextCheckInvariants(final TLCState curState, final TLCState succState) throws IOException, WorkerException, Exception {
+        return doNextCheckInvariants(curState, succState, 0, this.tool.getInvariants().length);
+    }   
 
-	private final boolean doNextCheckInvariants(final TLCState curState, final TLCState succState) throws IOException, WorkerException, Exception {
+
+	private final boolean doNextCheckInvariants(final TLCState curState, final TLCState succState, int invRangeStart, int invRangeEnd) throws IOException, WorkerException, Exception {
         int k = 0;
 		try
         {
@@ -651,6 +707,10 @@ public final class Worker extends IdThread implements IWorker, INextStateFunctor
                 try{
                     long start = System.nanoTime();
                     for (k = 0; k < this.tool.getInvariants().length; k++){
+                        // Only check invariants in the specified range, when running in checkAllInvariants mode.
+                        if(k < invRangeStart || k >= invRangeEnd){
+                            continue;
+                        }
                         // If the invariant has already been violated, there is no need
                         // to check it again, since we already know it is not a true invariant.
                         String invName = tool.getInvNames()[k];

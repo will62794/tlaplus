@@ -713,7 +713,28 @@ public class TLC {
                     }
                     index++;
                 }
-            }  else if (args[index].equals("-checkCTIElimination"))
+            }
+            // Specify the sequence of invariant set sizes to check for each 
+            // ignored var set when we are checking against a loaded set of multiple,
+            // different variable slice caches.
+            else if (args[index].equals("-cacheStatesIgnoreVarsInvListCounts"))
+            {
+                index++;
+
+                // Parse list of variables to ignore/project in cached states e.g., var1,var2,var3
+                if (index < args.length)
+                {
+                    TLCGlobals.cacheStatesIgnoreVarsInvListCounts = new ArrayList<>();
+                    String invCountsArg = args[index];
+                    String[] invCounts = invCountsArg.split("\\|");
+                    for(int i = 0; i < invCounts.length; i++) {
+                        Integer invCount = Integer.valueOf(invCounts[i]);
+                        TLCGlobals.cacheStatesIgnoreVarsInvListCounts.add(invCount);
+                    }
+                    index++;
+                }
+            }
+            else if (args[index].equals("-checkCTIElimination"))
             {
                 index++;
                 TLCGlobals.checkCTIElimination = true;
