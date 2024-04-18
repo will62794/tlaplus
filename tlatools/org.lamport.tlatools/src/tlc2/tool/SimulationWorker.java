@@ -356,7 +356,7 @@ public class SimulationWorker extends IdThread {
         StateVec myInitStates = this.tool.getInitStates();
 
         if(autoInitSampling){
-            System.out.printf("Simulation worker %d computing local initial states in autoInitSamling mode (seed=%d).\n", myGetId(), initSeed);
+            System.out.printf("Simulation worker %d computing local initial states in autoInitSampling mode (seed=%d).\n", myGetId(), initSeed);
 
             int targetInitStateSetSizeDefault = 20000;
             int defaultLimitMS = 10000;
