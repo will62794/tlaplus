@@ -858,9 +858,10 @@ public abstract class Tool
                     // initial states i.e. don't generate different values for these variables, since they are marked
                     // as irrelevant to the properties being computed in this model checking run.
                     Value elemChosen = null;
-                    if(TLCGlobals.cacheStatesIgnoreVarsSets.size() == 1 &&
-                       TLCGlobals.cacheStatesIgnoreVarsSets.get(0).contains(varName.toString())){
-                        ValueEnumeration Enum = ((Enumerable)rval).elements(Ordering.NORMALIZED);
+                    // System.out.println(TLCGlobals.cacheStatesIgnoreVarsSets.size());
+                    if( TLCGlobals.cacheStatesIgnoreVarsSets.size() == 1 &&
+                        TLCGlobals.cacheStatesIgnoreVarsSets.get(0).contains(varName.toString())) {
+                        ValueEnumeration Enum = ((Enumerable)rval).elements();
                         elemChosen = Enum.nextElement();
                     } else{
                         // Simply pick a random value for this state variable from its domain.
