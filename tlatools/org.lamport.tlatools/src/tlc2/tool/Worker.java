@@ -154,8 +154,6 @@ public final class Worker extends IdThread implements IWorker, INextStateFunctor
     }
 
     public int loadAndCheckCachedStates() throws IOException {
-        System.out.println("Attempting to load cached states from '" + stateCacheFileName(TLCGlobals.cacheStatesIgnoreVarsSets.get(0)) + "'");
-
 
         // For each ignoreVarSet
         int invRangeStart = 0;
