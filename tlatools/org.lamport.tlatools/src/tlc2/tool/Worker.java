@@ -249,7 +249,7 @@ public final class Worker extends IdThread implements IWorker, INextStateFunctor
                 long start = System.currentTimeMillis();
                 int numStates = loadAndCheckCachedStates();
                 long end = System.currentTimeMillis();
-                System.out.printf("Loaded %d serialized states and checked %d invs in %dms\n", numStates, this.tool.getInvariants().length , end-start);
+                // System.out.printf("Loaded %d serialized states and checked %d invs in %dms\n", numStates, this.tool.getInvariants().length , end-start);
 
                 synchronized (this.tlc) {
                     if(!this.tlc.setDone()) {
