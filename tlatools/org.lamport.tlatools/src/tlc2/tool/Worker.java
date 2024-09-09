@@ -163,7 +163,7 @@ public final class Worker extends IdThread implements IWorker, INextStateFunctor
             int invGroupCount = TLCGlobals.cacheStatesIgnoreVarsInvListCounts.get(i);
             invRangeEnd = invRangeStart + invGroupCount;
             int numStates = loadAndCheckCachedStatesInvGroup(ignoreVarSet, invRangeStart, invRangeEnd);
-            System.out.printf("Loaded %d serialized states and checked %d invs in %dms\n", numStates, this.tool.getInvariants().length , invCheckDuration / (1000*1000));
+            System.out.printf("Loaded %d serialized states and checked %d invs in %dms\n", numStates, invGroupCount , invCheckDuration / (1000*1000));
             invRangeStart += invGroupCount;
         }
 
