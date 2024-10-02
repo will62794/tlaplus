@@ -886,7 +886,7 @@ public class ModelChecker extends AbstractChecker
 		}
 
         // Checkpoint the UniqueString table if we are caching.
-        if(this.cacheStates && TLCGlobals.cacheStatesMode.equals("cache")){
+        if(this.cacheStates && (TLCGlobals.cacheStatesMode.equals("cache") || TLCGlobals.cacheStatesMode.equals("recache"))){
             // String fname = "statecache/" + this.tool.getRootName() + "-internTbl";
             // Checkpoint UniqueString table for each projection slice.
             TLCGlobals.cacheStatesIgnoreVarsSets.forEach(vars -> {

@@ -153,6 +153,100 @@ public final class Worker extends IdThread implements IWorker, INextStateFunctor
         return i;
     }
 
+    public int recache(List<String> seedIgnoreVarSet, List<String> ignoreVarSet) throws IOException {
+        System.out.println("Attempting to load cached states from '" + stateCacheFileName(seedIgnoreVarSet) + "'");
+
+        HashSet<Long> localIgnoreSeenSet = new HashSet<Long>();
+        ValueOutputStream vos = new ValueOutputStream(stateCacheFileName(ignoreVarSet));
+
+
+        // Load the number of states.
+        ValueInputStream countVis = new ValueInputStream(stateCacheFileName(seedIgnoreVarSet) + "-count");
+        int stateCount = countVis.readInt();
+        countVis.close();
+        System.out.printf("Read count of %d cached states.\n", stateCount);
+
+        ValueInputStream vis = new ValueInputStream(stateCacheFileName(seedIgnoreVarSet));
+        int i;
+        for (i = 0; i < stateCount; i++) {
+            TLCState s = TLCState.Empty.createEmpty();
+            s.read(vis);
+            if(i % 100000 == 0 && i > 0){
+                System.out.printf("[TLCWorker-%d] Read %d / %d states.\n", this.myGetId() ,i, stateCount);
+            }
+
+            long fp = 0;
+            Map<UniqueString, IValue> vals = s.getVals();
+            //for loop to iterate over keys of the Map.
+            for (Map.Entry<UniqueString, IValue> entry : vals.entrySet()) {
+                UniqueString key = entry.getKey();
+                IValue val = entry.getValue();
+                // if(!ignoredVarsForCache.contains(key.toString())){
+                //     fp = val.fingerPrint(fp);
+                // }
+                if(!ignoreVarSet.contains(key.toString())){
+                    fp = val.fingerPrint(fp);
+                }
+            }
+
+            if(!localIgnoreSeenSet.contains(fp)){
+                // Write state to output file andu update count.
+                // String[] vars = succState.getVarsAsStrings();
+                // Print each var:
+                // for(int j=0;j<vars.length;j++){
+                    // System.out.printf("- %s\n", vars[j]);
+                // } 
+                // System.out.println("===");
+
+                s.write(vos);
+                // cacheStateCounts.set(ind, cacheStateCounts.get(ind) + 1);
+                localIgnoreSeenSet.add(fp);
+            }
+            // Re-cache the states.
+
+        }
+        vis.close();
+        vos.close();
+
+        // Write count.
+        String fname = stateCacheFileName(ignoreVarSet) + "-count";
+        System.out.printf("Saving state cache count to '%s' with count of %d states.\n", fname, localIgnoreSeenSet.size());
+        ValueOutputStream countVos = new ValueOutputStream(fname);
+        countVos.writeInt(localIgnoreSeenSet.size());
+        countVos.close();
+        System.out.println("Re-cached states at '" + stateCacheFileName(ignoreVarSet) + "'");
+
+        return i;
+    }
+
+    public int loadAndRecacheStates() throws IOException {
+        // System.out.println("Attempting to load cached states from '" + stateCacheFileName(TLCGlobals.cacheStatesIgnoreVarsSets.get(0)) + "'");
+
+        // For each ignoreVarSet
+        // int invRangeStart = 0;
+        // int invRangeEnd = 0;
+        for(int i=0;i<TLCGlobals.cacheStatesIgnoreVarsSets.size();i++){
+            List<String> ignoreVarSet = TLCGlobals.cacheStatesIgnoreVarsSets.get(i);
+            // int invGroupCount = TLCGlobals.cacheStatesIgnoreVarsInvListCounts.get(i);
+            // invRangeEnd = invRangeStart + invGroupCount;
+            // int numStates = loadAndCheckCachedStatesInvGroup(ignoreVarSet, invRangeStart, invRangeEnd);
+            System.out.printf("Re-caching states with seed ignoreVarSet: %s\n", TLCGlobals.recacheModeSeedIgnoreSet.toString());
+
+            // The seed ignore set should be a subset of the ignoreVarSet.
+            if(!ignoreVarSet.containsAll(TLCGlobals.recacheModeSeedIgnoreSet)){
+                throw new IllegalArgumentException("Seed ignore set should be a subset of the ignore set.");
+            }
+
+            recache(TLCGlobals.recacheModeSeedIgnoreSet, ignoreVarSet);
+            // System.out.printf("Loaded %d serialized states and checked %d invs in %dms\n", numStates, this.tool.getInvariants().length , invCheckDuration / (1000*1000));
+            // invRangeStart += invGroupCount;
+        }
+
+        return 0;
+    }
+
+
+
     public int loadAndCheckCachedStates() throws IOException {
 
         // For each ignoreVarSet
@@ -261,6 +355,24 @@ public final class Worker extends IdThread implements IWorker, INextStateFunctor
             }
             return;
         }
+
+        // Compute new cached var set starting from a previously cached set that is a superset of this ignored var set.
+        if(this.cacheStates && TLCGlobals.cacheStatesMode.equals("recache")){
+            System.out.println("Re-caching states.");
+            try{
+                int numStates = loadAndRecacheStates();
+            } catch(IOException e){
+                e.printStackTrace();
+            }
+            synchronized (this.tlc) {
+                if(!this.tlc.setDone()) {
+                    // doPostConditionCheck();
+                }
+                this.tlc.notify();
+            }
+            return;
+        }
+
 
         // Initialize state cache output stream.
         if(this.cacheStates && TLCGlobals.cacheStatesMode.equals("cache")){

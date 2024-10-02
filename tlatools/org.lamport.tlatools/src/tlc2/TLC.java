@@ -694,6 +694,10 @@ public class TLC {
                     // Can be "cache" or "load".
                     TLCGlobals.cacheStatesMode = cacheMode;
                     index++;
+                    if(cacheMode.equals("recache")){
+                        TLCGlobals.recacheModeSeedIgnoreSet = Arrays.asList(args[index].split(","));
+                        index++;
+                    }
                 }
             } 
             else if (args[index].equals("-cacheStatesIgnoreVars"))

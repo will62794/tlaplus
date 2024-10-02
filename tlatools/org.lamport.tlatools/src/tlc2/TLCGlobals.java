@@ -46,7 +46,8 @@ public class TLCGlobals
     // public static String[] cacheStatesIgnoreVars = new String[0];
     public static List<List<String>> cacheStatesIgnoreVarsSets = new ArrayList<>();
     public static List<Integer> cacheStatesIgnoreVarsInvListCounts = new ArrayList<>();
-    public static String cacheStatesMode = "none"; // "cache" or "load".
+    public static String cacheStatesMode = "none"; // "cache" or "load" or "recache".
+    public static List<String> recacheModeSeedIgnoreSet = null; // "cache" or "load".
     public static boolean checkCTIElimination = false;
     
 	/**
