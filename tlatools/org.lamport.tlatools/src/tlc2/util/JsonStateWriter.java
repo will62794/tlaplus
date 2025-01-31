@@ -34,6 +34,8 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
+
 
 import tlc2.tool.Action;
 import tlc2.tool.TLCState;
@@ -229,6 +231,11 @@ public class JsonStateWriter extends StateWriter {
 		edgeJsonObj.add("from", new JsonPrimitive(state.fingerPrint()));
 		edgeJsonObj.add("to", new JsonPrimitive(successor.fingerPrint()));
 		edgeJsonObj.add("action", new JsonPrimitive(action.getName().toString()));
+        JsonArray paramsArr = new JsonArray();
+        action.getParameters().forEach(param -> paramsArr.add(new JsonPrimitive(param.toString())));
+        edgeJsonObj.add("actionParams", paramsArr);
+        
+        // action.getP
 
 		edgesArray.add(edgeJsonObj);
 

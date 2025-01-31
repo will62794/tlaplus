@@ -4,7 +4,15 @@
 package tlc2.tool;
 
 import java.io.Serializable;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.List;
+import java.util.StringJoiner;
+import java.util.stream.Collector;
+import java.util.stream.Collectors;
 
+import tla2sany.semantic.FormalParamNode;
 import tla2sany.semantic.OpDefNode;
 import tla2sany.semantic.SemanticNode;
 import tla2sany.st.Location;
@@ -13,6 +21,9 @@ import tla2sany.st.TreeNode;
 import tlc2.tool.coverage.CostModel;
 import tlc2.util.Context;
 import util.UniqueString;
+import tlc2.value.impl.Value;
+import java.util.Map;
+import java.util.HashMap;
 
 public final class Action implements ToolGlobals, Serializable {
 	private static final UniqueString UNNAMED_ACTION = UniqueString.uniqueStringOf("UnnamedAction");
@@ -47,6 +58,19 @@ public final class Action implements ToolGlobals, Serializable {
 /* Returns a string representation of this action.  */
   public final String toString() {
     return "<Action " + pred.toString() + ">";
+  }
+
+//   public final Map<UniqueString, Value> getParameters() {
+  public final List<Value> getParameters() {
+
+    // String parameters = "(" + Arrays.stream(opDef.getParams()).map(p -> t.lookup(p, con, false).toString())
+                                // .collect(Collectors.joining(", ")) + ")";
+
+    return Arrays.stream(opDef != null ? opDef.getParams() : new FormalParamNode[0])
+            .filter(p -> con.lookup(p) instanceof Value)
+            .map(p -> (Value) con.lookup(p))
+            .collect(Collectors.toList());
+            // .collect(Collectors.toMap(FormalParamNode::getName, p -> (Value) con.lookup(p)));
   }
 
   public final String getLocation() {
