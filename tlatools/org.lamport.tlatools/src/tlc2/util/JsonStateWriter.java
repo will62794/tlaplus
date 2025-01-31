@@ -35,6 +35,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
+import util.UniqueString;
 
 
 import tlc2.tool.Action;
@@ -231,9 +232,22 @@ public class JsonStateWriter extends StateWriter {
 		edgeJsonObj.add("from", new JsonPrimitive(state.fingerPrint()));
 		edgeJsonObj.add("to", new JsonPrimitive(successor.fingerPrint()));
 		edgeJsonObj.add("action", new JsonPrimitive(action.getName().toString()));
-        JsonArray paramsArr = new JsonArray();
-        action.getParameters().forEach(param -> paramsArr.add(new JsonPrimitive(param.toString())));
-        edgeJsonObj.add("actionParams", paramsArr);
+        // JsonArray paramsArr = new JsonArray();
+        JsonObject paramsObj = new JsonObject();
+
+        action.getParameters().forEach((key, value) -> {
+            paramsObj.add(key.toString(), new JsonPrimitive(value.toString()));
+        });
+
+        // for (UniqueString entry : action.getParameters().keys()) {
+        //     // System.out.println(entry.getKey() + "/" + entry.getValue());
+        //     // paramsObj.add(entry.getKey().toString(), new JsonPrimitive(entry.getValue().toString()));
+        //     // action.getParameters().forEach(param -> paramsObj.add(param.getName().toString(), new JsonPrimitive(param.toString())));
+
+        // }
+
+        // action.getParameters().forEach(param -> paramsObj.add(param.getName().toString(), new JsonPrimitive(param.toString())));
+        edgeJsonObj.add("actionParams", paramsObj);
         
         // action.getP
 

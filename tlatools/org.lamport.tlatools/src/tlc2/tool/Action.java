@@ -7,7 +7,6 @@ import java.io.Serializable;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.List;
 import java.util.StringJoiner;
 import java.util.stream.Collector;
 import java.util.stream.Collectors;
@@ -60,17 +59,14 @@ public final class Action implements ToolGlobals, Serializable {
     return "<Action " + pred.toString() + ">";
   }
 
-//   public final Map<UniqueString, Value> getParameters() {
-  public final List<Value> getParameters() {
+  public final Map<UniqueString, Value> getParameters() {
 
     // String parameters = "(" + Arrays.stream(opDef.getParams()).map(p -> t.lookup(p, con, false).toString())
-                                // .collect(Collectors.joining(", ")) + ")";
+                        // .collect(Collectors.joining(", ")) + ")";
 
     return Arrays.stream(opDef != null ? opDef.getParams() : new FormalParamNode[0])
             .filter(p -> con.lookup(p) instanceof Value)
-            .map(p -> (Value) con.lookup(p))
-            .collect(Collectors.toList());
-            // .collect(Collectors.toMap(FormalParamNode::getName, p -> (Value) con.lookup(p)));
+            .collect(Collectors.toMap(FormalParamNode::getName, p -> (Value) con.lookup(p)));
   }
 
   public final String getLocation() {
