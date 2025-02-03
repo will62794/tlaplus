@@ -38,11 +38,11 @@ jobs:
       with:
         java-version: 11.0.3
 
-    - name: Set up Ant
-      uses: cedx/setup-ant@v3
-      with:
-        optional-tasks: true
-        version: latest
+    # - name: Set up Ant
+    #   uses: cedx/setup-ant@v3
+    #   with:
+    #     optional-tasks: true
+    #     version: latest
 
       ## 
       ## Speed-up build with a cached ~/.m2/repository (300+ MB).
