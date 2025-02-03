@@ -106,7 +106,7 @@ jobs:
     ## Build TLC.
     ##
     - name: Build TLC (Linux)
-      run: cd tlatools/org.lamport.tlatools && ant -f customBuild.xml info compile dist
+      run: cd tlatools/org.lamport.tlatools && mkdir test-class && ant -f customBuild.xml info compile dist
       
       ##
       ## Create signed apt repository out of Linux Toolbox zip.
