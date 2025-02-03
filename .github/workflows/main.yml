@@ -140,8 +140,6 @@ jobs:
            DRAFT_RELEASE=$(curl -sS -H "Authorization: token ${{secrets.GITHUB_TOKEN}}" https://api.github.com/repos/${{ github.repository }}/releases --header "Content-Type: application/json" | jq '.[]| select(.name=="${{ matrix.GITHUB_RELEASE_NAME }}") | .id')
 
            ## Delete old assets and upload replacement assets (if delete fails we still try to upload the new asset)
-        #    ID=$(curl -sS -H "Authorization: token ${{secrets.GITHUB_TOKEN}}" https://api.github.com/repos/${{ github.repository }}/releases/$DRAFT_RELEASE/assets --header "Content-Type: application/json"  | jq '.[]| select(.name == "tla2tools.jar") | .id')
-        #    curl -sS -X DELETE -H "Authorization: token ${{secrets.GITHUB_TOKEN}}" https://api.github.com/repos/${{ github.repository }}/releases/assets/$ID
            curl -s -X POST -H "Content-Type: application/zip" -H "Authorization: token ${{secrets.GITHUB_TOKEN}}" https://uploads.github.com/repos/${{ github.repository }}/releases/$DRAFT_RELEASE/assets?name=tla2tools.jar --upload-file tlatools/org.lamport.tlatools/dist/tla2tools.jar
 
     # - name: Upload assets to INRIA
