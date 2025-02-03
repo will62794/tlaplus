@@ -14,10 +14,6 @@ jobs:
       matrix:
         operating-system: [ubuntu-latest]
         include: 
-        - operating-system: macos-latest
-          MVN_COMMAND: mvn -Dmaven.test.skip=true
-          GITHUB_RELEASE_NAME: WillDev release
-          TOOLBOX_PRODUCT_ZIP: TLAToolbox-1.8.0-macosx.cocoa.x86_64.zip
 
         - operating-system: ubuntu-latest
           MVN_COMMAND: xvfb-run mvn -Dtest.skip=true -Dmaven.test.failure.ignore=true 
