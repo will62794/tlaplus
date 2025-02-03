@@ -12,7 +12,7 @@ jobs:
     runs-on: ${{ matrix.operating-system }}
     strategy: 
       matrix:
-        operating-system: [ubuntu-latest, macos-latest]
+        operating-system: [ubuntu-latest]
         include: 
         - operating-system: macos-latest
           MVN_COMMAND: mvn -Dmaven.test.skip=true
@@ -37,6 +37,12 @@ jobs:
       uses: actions/setup-java@v1
       with:
         java-version: 11.0.3
+
+    - name: Set up Ant
+      uses: cedx/setup-ant@v3
+      with:
+        optional-tasks: true
+        version: latest
 
       ## 
       ## Speed-up build with a cached ~/.m2/repository (300+ MB).
