@@ -34,6 +34,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.io.OutputStreamWriter;
 import java.util.stream.Collectors;
 import util.UniqueString;
 
@@ -48,6 +49,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonPrimitive;
+import com.google.gson.stream.JsonWriter;
 import com.google.gson.GsonBuilder;
 import com.google.gson.Gson;
 
@@ -101,6 +103,9 @@ public class JsonStateWriter extends StateWriter {
 	private JsonArray edgesArray = new JsonArray();
 
     private boolean useITF = false;
+
+    private JsonWriter jsonStateWriter;
+    private JsonWriter jsonEdgeWriter;
 	
 	public JsonStateWriter(final String fname, final String strict) throws IOException {
 		this(fname, strict, false, false, false, false);
@@ -129,6 +134,14 @@ public class JsonStateWriter extends StateWriter {
 		this.snapshot = snapshot;
         this.useITF = useITF;
 
+        // Create JSON specific writer for streaming output for states and edges.
+        String baseFname = fname.replaceAll(".json", "");
+        this.jsonStateWriter = new JsonWriter(new OutputStreamWriter(FileUtil.newBFOS(baseFname + "-states" + ".json")));
+        this.jsonEdgeWriter = new JsonWriter(new OutputStreamWriter(FileUtil.newBFOS(baseFname + "-edges" + ".json")));
+
+        this.jsonStateWriter.beginArray();
+        this.jsonEdgeWriter.beginArray();
+
 
 // 		this.writer.append(strict + "digraph DiskGraph {\n"); // strict removes redundant edges
 // 		// Turned off LR because top to bottom provides better results with GraphViz viewer.
@@ -144,7 +157,8 @@ public class JsonStateWriter extends StateWriter {
 
 // 		this.writer.append("subgraph cluster_graph {\n"); 
 //         this.writer.append("color=\"white\";\n"); // no border.
-		this.writer.flush();
+		this.jsonStateWriter.flush();
+		this.jsonEdgeWriter.flush();
 	}
 
 	/* (non-Javadoc)
@@ -166,8 +180,21 @@ public class JsonStateWriter extends StateWriter {
 		// this.writer.append("\",style = filled]");
 		// this.writer.append("\n");
 		
-		JsonElement stateJson = state2json(state, true);
-		statesArray.add(stateJson);
+		// JsonElement stateJson = state2json(state, true);
+		JsonObject stateJson = (JsonObject)state2json(state, true);
+
+
+        try{
+            Gson gson = new GsonBuilder().setPrettyPrinting().create();
+            gson.toJson(stateJson, this.jsonStateWriter);
+            String stateJsonStr = gson.toJson(stateJson);
+            System.out.println(stateJsonStr);
+            this.jsonStateWriter.flush();
+        } catch(IOException e){
+            System.out.println(e.toString());
+        }
+
+		// statesArray.add(stateJson);
 
 		maintainRanks(state);
 		
@@ -231,7 +258,7 @@ public class JsonStateWriter extends StateWriter {
 		// edgeJson.add(new JsonPrimitive(successor.fingerPrint()));
 		edgeJsonObj.add("from", new JsonPrimitive(state.fingerPrint()));
 		edgeJsonObj.add("to", new JsonPrimitive(successor.fingerPrint()));
-		edgeJsonObj.add("action", new JsonPrimitive(action.getName().toString()));
+		edgeJsonObj.add("act", new JsonPrimitive(action.getName().toString()));
         // JsonArray paramsArr = new JsonArray();
         JsonObject paramsObj = new JsonObject();
 
@@ -247,11 +274,21 @@ public class JsonStateWriter extends StateWriter {
         // }
 
         // action.getParameters().forEach(param -> paramsObj.add(param.getName().toString(), new JsonPrimitive(param.toString())));
-        edgeJsonObj.add("actionParams", paramsObj);
+        edgeJsonObj.add("params", paramsObj);
         
-        // action.getP
+		// edgesArray.add(edgeJsonObj);
 
-		edgesArray.add(edgeJsonObj);
+        // JsonElement stateJson = state2json(state, true);
+        // JsonObject stateJson = (JsonObject)state2json(successor, true);
+
+        try{
+            Gson gson = new GsonBuilder().setPrettyPrinting().create();
+            gson.toJson(edgeJsonObj, this.jsonEdgeWriter);
+            String edgeJsonStr = gson.toJson(edgeJsonObj);
+            this.jsonEdgeWriter.flush();
+        } catch(IOException e){
+            System.out.println(e.toString());
+        }
 
 
 		if (visualization == Visualization.STUTTERING) {
@@ -278,7 +315,21 @@ public class JsonStateWriter extends StateWriter {
 				// this.writer.append(";\n");
 
 				
-				statesArray.add(state2json(successor, false));
+				// statesArray.add(state2json(successor, false));
+
+                // JsonElement stateJson = state2json(state, true);
+                JsonObject stateJson = (JsonObject)state2json(successor, true);
+
+                try{
+                    Gson gson = new GsonBuilder().setPrettyPrinting().create();
+                    gson.toJson(stateJson, this.jsonStateWriter);
+                    String stateJsonStr = gson.toJson(stateJson);
+                    // System.out.println(stateJsonStr);
+                    this.jsonStateWriter.flush();
+                } catch(IOException e){
+                    System.out.println(e.toString());
+                }
+
 
 				// try{
 				// 	JsonObject stateObj = new JsonElement;
@@ -409,9 +460,15 @@ public class JsonStateWriter extends StateWriter {
 			    stateJson = TLCJson.stateToJson(state);
             }
 
+            JsonObject stateJsonObj = stateJson.getAsJsonObject();
+            // stateJsonObj.remove("mlog");
+            // stateJsonObj.remove("mtxnSnapshots");
+
+            // stateJson.getAsJsonObject().add("initial", new JsonPrimitive(isInitial));
+
 			// Construct the state with its fingerprint and its value.
 			stateObj.add("fp", new JsonPrimitive(state.fingerPrint()));
-			stateObj.add("val", stateJson);
+			stateObj.add("val", stateJsonObj);
 			stateObj.add("initial", new JsonPrimitive(isInitial));
 
 			return stateObj;
@@ -443,6 +500,18 @@ public class JsonStateWriter extends StateWriter {
       	String prettyJson = gson.toJson(statesObject);
 		//   this.writer.append(statesObject.toString(4));
 		  this.writer.append(prettyJson);
+
+
+          try{
+            this.jsonStateWriter.endArray();
+            this.jsonEdgeWriter.endArray();
+            this.jsonStateWriter.flush();
+            this.jsonStateWriter.close();
+            this.jsonEdgeWriter.flush();
+            this.jsonEdgeWriter.close();
+          } catch(IOException e){
+            System.out.println(e.toString());
+          }
 
 		// for (final Set<Long> entry : rankToNodes.values()) {
 		// 	this.writer.append("{rank = same; ");
