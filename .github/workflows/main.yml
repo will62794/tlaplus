@@ -44,7 +44,7 @@ jobs:
       ## 
       ## Speed-up build with a cached ~/.m2/repository (300+ MB).
       ##
-    - uses: actions/cache@v1
+    - uses: actions/cache@v3
       with:
         path: ~/.m2/repository
         key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
