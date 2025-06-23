@@ -139,7 +139,12 @@ public class JsonStateWriter extends StateWriter {
         this.jsonStateWriter = new JsonWriter(new OutputStreamWriter(FileUtil.newBFOS(baseFname + "-states" + ".json")));
         this.jsonEdgeWriter = new JsonWriter(new OutputStreamWriter(FileUtil.newBFOS(baseFname + "-edges" + ".json")));
 
+        this.jsonStateWriter.beginObject();
+        this.jsonStateWriter.name("states");
         this.jsonStateWriter.beginArray();
+
+        this.jsonEdgeWriter.beginObject();
+        this.jsonEdgeWriter.name("edges");
         this.jsonEdgeWriter.beginArray();
 
 
@@ -502,10 +507,15 @@ public class JsonStateWriter extends StateWriter {
 
 
           try{
+            // Close states.
             this.jsonStateWriter.endArray();
-            this.jsonEdgeWriter.endArray();
+            this.jsonStateWriter.endObject();
             this.jsonStateWriter.flush();
             this.jsonStateWriter.close();
+
+            // Close edges.
+            this.jsonEdgeWriter.endArray();
+            this.jsonEdgeWriter.endObject();
             this.jsonEdgeWriter.flush();
             this.jsonEdgeWriter.close();
           } catch(IOException e){
