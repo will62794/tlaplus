@@ -188,7 +188,6 @@ public class JsonStateWriter extends StateWriter {
             Gson gson = new GsonBuilder().setPrettyPrinting().create();
             gson.toJson(stateJson, this.jsonStateWriter);
             String stateJsonStr = gson.toJson(stateJson);
-            System.out.println(stateJsonStr);
             this.jsonStateWriter.flush();
         } catch(IOException e){
             System.out.println(e.toString());
